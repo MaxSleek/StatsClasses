@@ -1,0 +1,120 @@
+---
+title: "320 HW 8"
+author: "Max Sleek"
+date: "10/31/2022"
+output: 
+  html_document:
+    number_sections: true
+---
+
+```{r, include = FALSE}
+library(dplyr)
+library(tidyverse)
+library(faraway)
+library(leaps)
+```
+
+In lab 8 you examine the `gala` dataset and select appropriate models via backwards selection and AIC.  In this homework we are going to examine this same full model according to forwards selection and adjusted $R^2$.  To that end, let me remind you of the data and the fitted full model.  
+
+```{r}
+dat<-gala
+head(dat)
+full_mod<-lm(Species~., dat)
+summary(full_mod)
+
+```
+
+
+# Forward Selection
+
+Use forward selection to choose the optimal model at the $\alpha = 0.1$ level.  This will require several iterations, so each iteration should occupy different code chunks.  In between the code chunks you should specify what variable is retained.   (5 pts)
+
+```{r}
+#pick first predictor
+lmod1.1<-lm(Species ~ Endemics, dat)
+summary(lmod1.1)$coef[,4]
+
+lmod1.2<-lm(Species ~ Area, dat)
+summary(lmod1.2)$coef[,4]
+
+lmod1.3<-lm(Species ~ Elevation, dat)
+summary(lmod1.3)$coef[,4]
+
+lmod1.4<-lm(Species ~ Nearest, dat)
+summary(lmod1.4)$coef[,4]
+
+lmod1.5<-lm(Species ~ Scruz, dat)
+summary(lmod1.5)$coef[,4]
+
+lmod1.6<-lm(Species ~ Adjacent, dat)
+summary(lmod1.6)$coef[,4]
+```
+
+`Endemics` will be retained. 
+
+```{r}
+#pick second predictor
+lmod2.1<-lm(Species ~ Endemics + Area, dat)
+summary(lmod2.1)$coef[,4]
+
+lmod2.2<-lm(Species ~ Endemics + Elevation, dat)
+summary(lmod2.2)$coef[,4]
+
+lmod2.3<-lm(Species ~ Endemics + Nearest, dat)
+summary(lmod2.3)$coef[,4]
+
+lmod2.4<-lm(Species ~ Endemics + Scruz, dat)
+summary(lmod2.4)$coef[,4]
+
+lmod2.5<-lm(Species ~ Endemics + Adjacent, dat)
+summary(lmod2.5)$coef[,4]
+```
+  
+None of the remaining variables are significant. If I had to pick one, it would be `Adjacent`, but it's not close enough to being significant. This means our final model is:
+
+```{r}
+lmod2 <- lm(Species ~ Endemics, dat)
+summary(lmod2)
+```
+
+
+## 
+Explain the difference between $R^2$ and adjusted $R^2$.  This should an explanation as to why the two are so comparable in this particular final model. (1pt)  
+
+**Adjusted R^2 takes the complexity of the model (AKA the number of predictors) into account while R^2 does not. They are usually very similar but adjusted R^2 is more robust.**
+
+
+# Adjusted $R^2$
+
+We can select our model according to adjusted $R^2$ which should balance complexity and fit.  That is to say, we can use `regsubsets` to find the optimal model of a specified size and then find the number of predictors that will maximize adjusted $R^2$. 
+
+##
+Use `regsubsets` on the full model in conjunction with the `which` command to find the predictors to include for any particular size of model. (1pt) 
+
+```{r}
+subs <- regsubsets(Species~., dat) %>%
+  summary()
+subs$which
+
+```
+
+##
+Now plot adjusted $R^2$ against the number of predictors.  Also use the `which.max` command to explicitly find the number of predictors that maximizes the adjusted $R^2$. (2pt)
+
+```{r}
+#plot
+plot(subs$adjr2~I(1:6), ylab="Adj. R^2", xlab="Number of Predictors")
+which.max(subs$adjr2)
+#3 predictors maximizes AIC
+```
+
+##
+Fit your finalized model according to the above criteria and print its summary to the screen ^[Notice if you have done this correctly that this is a different model than is produced in either of forward or backwards selection yet the same model as the stepwise AIC selection.  This is because statistical significance of predictors prioritizes interpretation over fit.  On the other hand, AIC and Adjusted $R^2$ do a better job balancing these competing interests. ]. (1pt)
+
+```{r}
+#final model
+final_mod <- lm(Species ~ Endemics + Elevation + Area, dat)
+summary(final_mod)
+#check stepwise AIC model
+step(full_mod)
+```

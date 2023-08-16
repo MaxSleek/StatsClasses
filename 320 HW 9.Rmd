@@ -1,0 +1,91 @@
+---
+title: "HW 9"
+author: "Max Sleek"
+date: "9/28/2022"
+output: html_document
+
+---
+
+```{r}
+library(glmnet)
+library(MASS)
+library(faraway)
+library(lars)
+library(Metrics)
+data(meatspec, package = "faraway")
+head(meatspec)
+```
+
+# 1
+
+Use the `sample` function to partition the data into training and testing sets.  The testing set should be approximately 25\% of the total data. 
+
+```{r}
+set.seed(123)
+smp_size <- floor(215*.75)
+test_ind <- sample(seq_len(nrow(meatspec)), size = 215-161)
+test <- meatspec[test_ind,]
+train <- meatspec[-(test_ind),]
+trainy<- as.matrix(train$fat)
+testy<- as.matrix(test$fat)
+trainx<- as.matrix(train[,1:100])
+testx<- as.matrix(test[,1:100])
+```
+
+# 2
+
+Use `glmnet` to fit an initial Ridge Regression. Print a summary of this initial model. 
+
+```{r}
+fit = glmnet(trainx, trainy)
+summary(fit)
+```
+
+# 3
+
+Now use 3-fold cross validation to tune $\lambda$.  Choose the $\lambda$ that minimizes cross validation error.  Print said $\lambda$ and its index to the screen.
+
+```{r}
+cvfit<-cv.glmnet(trainx, trainy, nfolds = 3)
+cvfit$lambda.min
+which(fit$lambda == cvfit$lambda.min)
+```
+
+# 4
+
+Now display the model corresponding to this choice of tuning parameter.  Comment on the number of non-zero coefficients and whether this is consistent with your understanding of Ridge as opposed to Lasso Regression. 
+
+**There are 53 nonzero coefficients in the model, which is consistent with my knowledge of Ridge regression because Ridge regression aims to shrink coefficients to near-zero while keeping as many as possible. On the other hand, Lasso regression picks one predictor out of a group of related predictors.** 
+
+```{r}
+cvfit
+coef(cvfit, s = "lambda.1se")
+coef(cvfit, s = "lambda.min")
+```
+
+# 5
+
+Report the mean squared prediction error of the above coefficients as well as the variability of this measure of prediction error.  
+
+```{r}
+cvfit$cvm
+cvfit$cvsd
+```
+
+# 6 
+
+Use this model to predict on the test set.  Then compute the root mean squared error between the test response and the predicted response.  
+
+```{r}
+s = cvfit$lambda.min
+ridge_pred = predict(cvfit, s = s, newx = testx)
+rmse(testy, ridge_pred)
+```
+
+# 7 
+
+Give a short comparison of Lasso and Ridge Regression.  You should include the merits and downfalls of each.  
+
+**Ridge regression adds a "penalty" to predictors to reduce the standard error of a model. It shrinks coefficients in the model to near-zero in an attempt to minimize bias, therefore resulting in many of the coefficients being 0. Since the coefficients are shrunk, the model is more fit to be used on an actual data set rather than simply the training set. It is most useful when there is known multicollinearity and works to reduce overfitting. However, the inclusion of all or almost all predictors sacrifices interpretability. Also, ridge eliminates the ability to do feature selection. Lasso Regression is different from ridge because it makes coefficients absolute 0 and selects far less predictors than ridge. Lasso chooses 1 coefficient from a group of related coefficients and essentially eliminates the rest. This is its main advantage, but also its main disadvantage. Eliminating variables can be risky and can lead to poor fitting, along with the fact that some variables may NEED to be included. However, the few amount of predictors can help with interpretability and allows the analyst to not think.**
+
+

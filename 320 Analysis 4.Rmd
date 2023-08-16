@@ -1,0 +1,256 @@
+---
+title: "Analysis 4"
+author: "Max Sleek"
+date: "9/30/2022"
+output: html_document
+---
+
+```{r, include = FALSE}
+
+library(Hmisc)
+library(corrplot)
+library(glmnet)
+library(genridge)
+library(faraway)
+library(factoextra)
+library(magrittr)
+library(dplyr)
+library(car)
+```
+
+# Part 1: Multicollinearity
+
+Recall the `mtcars` dataset.  We have previously examined its correlation structure.  Notice that several variables exhibit tremendously strong correlation.  That is to say, **wt** is strongly positively correlated with **disp**, and **cyl** is also strongly positively correlated with **disp**.  Recall that when we have covariates (predictors, explanatory variables, etc) that are strongly correlated, collinearity is a potential danger.  
+
+```{r}
+
+data("mtcars")
+res <- cor(mtcars)
+corrplot(res, type = "upper", order = "hclust", 
+         tl.col = "black", tl.srt = 45)
+
+```
+
+## Q1.1.1
+
+First, let's fit an initial and full model on all potential covariates.  This will give us a baseline for performance and evaluating variance inflation factors.  
+
+Fit a linear model, print a summary, and use the `vif` function to assess collinearity. (4 pts)
+
+```{r}
+#Student Input
+full <- lm(mpg~., data = mtcars)
+summary(full)
+vif(full)
+```
+
+## Q1.1.2
+
+Interpret the VIF.  Are any covariates significantly collinear? (2pt)
+
+**Many of our variables are at least somewhat collinear as their VIFs are above 5, but `cyl`, `disp`, and `wt` are the most significant cases since they are above 10.**
+
+
+## Q1.2.1
+
+We can use regularization methods, like Ridge Regression, to mitigate collinearity.  Before we do so, we need to define a response vector and model matrix.  
+
+Define the `mpg` variable as a response vector.  Then, the remaining variable in the dataset should be assigned to an explanatory data matrix. (2pt)
+
+
+```{r}
+#student input
+res <- mtcars$mpg
+mat <- model.matrix(full)[,-1]
+```
+
+## Q1.2.2
+
+Use 3 fold cross-validation to find the optimal $\lambda$ tuning parameter for a Ridge Regression.  In order to mitigate collinearity, we will need to optimize $\lambda$ not only for fit but also shrinkage.  To that end, this $\lambda$ should be the one with the minimum cross-validation error within 1 standard error of the $\lambda_{min}$. (2pt)
+
+```{r}
+cvfit <- cv.glmnet(mat, res, nfolds = 3)
+s = cvfit$lambda.1se
+```
+
+## Q1.2.3
+
+Now that you have the proper $\lambda$, use the `ridge` function to fit a ridge regression with precisely this parameter.  Then, print the coefficients of the fitted model and use the `vif.ridge` function to evaluate collinearity on this regularized model.  (4pt)
+
+```{r}
+set.seed(123)
+#student input
+ridge <- ridge(res, mat, lambda = s)
+coef(ridge)
+vif.ridge(ridge)
+```
+
+
+## Q1.2.4
+
+How many covariates are collinear in this regularized model?  (2pt)
+
+**None!**
+
+
+# Part 2: Linear Model Selection
+
+Now one thing that may be apparent from the original linear model is that not all of our collinear variables are significant predictors.  Therefore, instead of using a regularization method such as Ridge, we can simply remove these insignificant collinear variables from our model.  This should also help with collinearity issues and transition us nicely to a model selection technique like backwards selection.  
+
+
+## Q2.1.1 
+Remove the least significant variable (according to associated p-value) that is also collinear according to the VIF criterion and refit the model.  Also, recalculate the VIF for the remaining predictors. (2pt)
+
+
+```{r}
+#student input
+summary(full)
+vif(full)
+mod2 <- update(full, .~. -cyl)
+vif(mod2)
+```
+
+
+## Q2.1.2
+
+Continue removing the least significant predictor that is also collinear, one at a time, until you have no problems with collinearity.  ^[Note, this is similar to but starkly distinct from precise backwards selection via p-values.  You should also be cautious to remove one variable at a time and then reassess collinearity.  Put more specifically, an initially collinear variable may only be so with respect to another variable that is also collinear.  Once one of these is removed the other fails to be problematic and can thus remain in the model.].  (4pts)
+
+```{r}
+#student input
+summary(mod2)
+vif(mod2)
+mod3 <- update(mod2, .~. -disp)
+vif(mod3)
+```
+
+
+Now, once you have rid the model of collinearity issues, you likely still have an unnecessarily large model.  That is, not all of the remaining covariates are statistically signficiant.  
+
+
+## Q2.2.1
+
+To assuage this, perform backwards selection until all variables that remain are statistically significant.  (4pts)
+
+```{r}
+#backwards selection
+summary(mod3)
+mod4 <- update(mod3, .~. -vs)
+summary(mod4)
+mod5 <- update(mod4, .~. -gear)
+summary(mod5)
+mod6 <- update(mod5, .~. -hp)
+summary(mod6)
+mod7 <- update(mod6, .~. -drat)
+summary(mod7)
+mod8 <- update(mod7, .~. -carb)
+summary(mod8)
+vif(mod8)
+```
+
+## Q2.2.2
+Write down your finalized model in terms of parameter estimates and remaining covariates.  Next, note that `wt` is the weight variable for a given car.  Interpret the estimate in terms of the linear model for `mpg`.
+(2pts)
+
+$\hat{y} = 9.6178 -3.9165wt + 1.2259qsec + 2.9358am$
+
+**For each additional ton a car weighs, the mpg is expected to down by -3.9165.**
+
+We are now going to use this model to predict fuel efficiency for my two automobiles.  My beloved truck is a 1978 Ford f100 Ranger.  It weighs 5900 pounds, has an embarrassingly slow 31 second quarter mile time, and a manual transmission (coded as 1 this data set).  My second car (bought for its comparative fuel efficiency) is a 2006 Camry LE that weighs 2500 pounds, has a 22 second quarter mile time, and is an automatic transmission. ^[If you are paying attention, I just gave you a hint as to what you final model should entail.]
+
+## Q2.2.3
+
+Use the above information and the fitted model to predict the `mpg` of both my truck and car.  Store these values in variables `Truck` and `Camry` respectively.  (3 pts)
+
+
+```{r}
+Truck<-data.frame(wt = 5.9, qsec = 31, am =1)
+Truck
+Camry<-data.frame(wt = 2.5, qsec = 22, am =0)
+Camry
+
+predict.lm(mod8, Truck, interval = "prediction")
+predict.lm(mod8, Camry, interval = "prediction")
+```
+
+## Q2.2.4
+
+If I tell you my automobiles' *actual* fuel efficiencies are 10 mpg and 25 mpg for the truck and car respectively, compute $residual_{truck}$ and $residual_{car}$.  (2pts)
+
+```{r}
+residual_truck <- predict.lm(mod8, Truck, interval = "prediction")[1] - 10
+residual_truck
+residual_car <- predict.lm(mod8, Camry, interval = "prediction")[1] - 25
+residual_car
+```
+
+You should notice that this refined model did quite well at predicting my Camry's fuel efficiency but drastically overestimated the truck's.  This could potentially be explained by the fact that every observation the `mtcars` dataset corresponds to a car rather than a truck.  Insofar as trucks exhibit notoriously poor fuel efficiency compared to cars, it should not surprise us that a model trained exclusively on cars is too forgiving when predicting on a truck.  
+
+# Part 3 Clustering
+
+We will now turn our attention to unsupervised learning, in particular clustering.  I have included for you some necessary packages and scaled the entire data set.  This scaling will aid in the clustering interpretation.  
+
+```{r}
+df<-scale(mtcars)
+```
+
+
+# Q3.1.1
+
+Use `kmeans` with $k=4, k=5$ to cluster the data along the first two dimensions of maximal variation.  Plot the results of this clustering using `fviz_cluster`.  (4pts)
+
+
+```{r}
+#student input
+k1 = kmeans(df, centers = 4)
+k2 = kmeans(df, centers = 5)
+fviz_cluster(k1, data = df)
+fviz_cluster(k2, data = df)
+```
+
+Recall that choose $k$ can be quite a daunting task, and we wrote a function -- `wssplot`-- to accomplish such a task.  I have included the source code from the lecture for you below, so you need only call the function correctly to use it.  Note, as we mentioned in class, this plot can be interpretted analogously to a *scree* plot but starts to deteriorate in high dimensions.  
+
+```{r}
+wssplot <- function(data, nc=15, seed=1234){
+  wss <- (nrow(data)-1)*sum(apply(data,2,var))
+  for (i in 2:nc){
+    set.seed(seed)
+    wss[i] <- sum(kmeans(data, centers=i)$withinss)}
+  plot(1:nc, wss, type="b", xlab="Number of Clusters",
+       ylab="Within groups sum of squares")
+  wss
+}
+wssplot(df)
+```
+
+# Q3.1.2
+
+Use the `wssplot` to determine a justifiable `k`.  Defend this choice both with respect to the plot you have above and the clusters that were visible in your initial two runs of kmeans.  Plot such a clustering if you choose a $k$ other than the ones above. Call this model `km3`(3pts)
+
+**In my opinion, 5 clusters has by far the best "elbow" in the wssplot, as the within groups sum actually increases. Additionally, 5 clusters makes the most sense based upon the plots we saw above.  The clusters are tighter and more practical than the k = 4 visualization.**
+
+
+We can now aim to interpret the clusters that we have.  To aid with this, I am going to create a new dataset, `mtcars2`, that appends our cluster labels to each observation.  
+
+```{r}
+mtcars2 <- mtcars %>%
+ mutate(cluster_group = k2$cluster) %>%
+  mutate(cluster_group = factor(cluster_group))
+```
+
+# Q3.1.3
+
+Now that I have a factor variable, `cluster_group`, I can perform ANOVA (assumptions permitting).  The most pressing consideration might be to determine if our clusters have been able to well-separate fuel-efficiency.  To that end, run an ANOVA on `mpg` as grouped by `cluster_group`.  *Note: cluster_group needs to be coerced to a factor before the `aov` command is run*.  Plot the diagnostic plots, and comment on their applicability.  If you ANOVA F-test is significant, follow-up with a Tukey Pairwise Comparison to see precisely *which* means a different.  (4pts)
+
+
+```{r}
+#student input
+anova <- aov(mpg~cluster_group, data = mtcars2)
+summary.aov(anova)
+TukeyHSD(anova)
+```
+
+# Q3.1.4 
+
+Interpret your above results. (2pts)
+
+**Our ANOVA F-test was extremely significant, meaning that there is likely a significant difference in mpg between our clusters. Through the Tukey HSD test, we can see that about 2/3 of our differences were significant, with 5-1, 4-2, and 5-2 being the only differences that weren't.**

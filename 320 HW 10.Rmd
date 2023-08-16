@@ -1,0 +1,125 @@
+---
+title: "HW 10"
+author: "Max Sleek"
+date: "11/2/2022"
+output: html_document
+---
+
+# Classification
+
+
+In a classic episode of How I Met Your Mother, Barney espouses a (potentially objectionable) theory about predicting a person's age given their affinity for the Star Wars' Ewok character.  He calls it the Ewok line, and it is likely overly simplistic.  In this first part of the homework we will build a classification tree to predict if a person finds the Ewok a lovable creature. As you can see below this classification will be based on more than just age.  It will also account for number of times the person has watched "Return of the Jedi" (the movie in which Ewoks appear), whether or not the person's parents were fans of the Star Wars franchise, number of pets, and finally age.  I have included necessary libraries and given you a summary of the data below.  
+
+The second part of the homework (Q4 and Q5) will pivot to using functions we wrote as part of lab 10 to better understand K-Nearest-Neighbors.  
+
+
+```{r}
+library(ISLR)
+library(tree)
+library(rpart)
+library(rpart.plot)
+library(caret)
+
+Ewok<-read.csv("Ewoks.csv")
+summary(Ewok)
+```
+
+```{r}
+names(Ewok)
+```
+
+
+## Q1 
+
+I have partitioned the data according to roughly a 75-25 split.  You should test whether the manner in which I have done it is representative enough of our data.  To this end, create a `prop.table` that reports the proportion of Yay's and Nay's for each of the `test` and `training` sets.  Your proportions should be roughly comporable if you the split is to be representative. (1 pt)
+
+```{r}
+test<-Ewok[1:23,]
+training<-Ewok[23:83,]
+
+#student prop.tables
+prop.table(table(test$Ewok))
+prop.table(table(training$Ewok))
+```
+
+## Q2 
+
+Use `rpart` to create a classification tree for the variable `Ewok` on the training data.  **Note, we have less data than normal, so you should also specify the argument `minsplit=5`.  This ensures that you are getting more than one or two nodes.  I will then plot your decision tree using the `rpart.plot` package and function. (1pt)
+
+
+```{r}
+#student 
+model <- rpart(Ewok~Times_watched + Year_Born + Parents_Fans + Pet_Number, training, minsplit=5)
+rpart.plot(model)
+```
+
+## Q2.1 
+
+Interpret this plot.  Would we anticipate an individual born in 1997 having seen "Return of the Jedi" 6 times with parents who are not fans of the franchise and having two pet would enjoy Ewoks ^[This is describing yours truly.  Can our model correctly guess my Ewok leaning?  For context, I absolutely adore Ewoks.]?  Explain your answer. (2 pt)
+
+*Yes. Andy has watched RotJ more than 4 times but less than 8, was born after 1973, 1983, and 1995. By our random forest, he like Ewoks.*
+
+## Q2.2 
+
+Acknowledging that building a Random Forest is typically the way to answer such a question, based solely off of our single tree, what variable appears to be most influential in predicting Ewok affinity?   (1 pt)
+
+*It seems that Year Born seems to be the most influential, with times watched close behind.* 
+
+## Q3
+
+Now use the model to classify on the test data set.  Create a confusion matrix and report the misclassification rate.  (1 pt)
+
+```{r}
+#confusion matrix
+predictions <- ifelse(predict(model, test, type = "vector")==2, "Yay", "Nay")
+results <- as.matrix(predictions == test$Ewok)
+results
+#misclassification rate
+length(which(results == FALSE))/length(results)
+```
+
+
+## Q4
+
+Lab 10 enabled you to write functions necessary for the K-Nearest-Neighbors algorithm.  I will include for you *my version* of these two functions.  You should write a function, `knn_classifier`, that takes in data --x-- and a categorical response --y-- and reports the mode of the categorical variable. (2pt) 
+
+```{r}
+euclid <- function(a, b) {
+  sqrt(sum((a - b)^2))
+}
+
+nearest_neighbors = function(x, obs, k){
+  dist = apply(x, 1, euclid, obs)
+  distances = sort(dist)[1:k]
+  neighbor_list = which(dist %in% sort(dist)[1:k])
+  return(list(neighbor_list, distances))
+}
+
+#student input
+knn_classifier = function(x, y) {
+  uniqv <- unique(x[,y])
+  uniqv[which.max(tabulate(match(x[,y], uniqv)))]
+}
+knn_classifier(Ewok, 'Ewok')
+```
+
+
+# Q5
+
+Use the first two above functions to find the indices of the 4 nearest neighbors to the last observation of the `Iris` dataset.  I will give you the `x` and the `obs`, but you need to make the proper function call.  From there, I will show you how these nearest neighbors compare to our last observation. Finally, use the last above function to come up with a classification for the species of our last data point based on its four nearest neighbors.  Again, I will leave the function call to you. (2 pt)
+
+```{r}
+#data less last observation
+x = iris[1:(nrow(iris)-1),]
+#observation to be classified
+obs = iris[nrow(iris),]
+#comparison to original observation
+obs[,1:4]
+#final function call to predict species based on knn
+knn <- as.vector(nearest_neighbors(x[,1:4], obs[,1:4], 4)[[1]])
+#check against acutal species of observation
+knn_classifier(iris[knn,], 'Species')
+```
+
+
+

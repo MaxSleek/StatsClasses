@@ -1,0 +1,175 @@
+---
+title: "320 Lab 3"
+author: "Max Sleek"
+date: "`r format(Sys.time(), '%B %d, %Y')`"
+output: 
+  html_document:
+    number_sections: true
+---
+
+# Lab 3
+```{r setup2a, include=FALSE}
+# This is a good place to put libraries required for using the ggplot function
+knitr::opts_chunk$set(echo = TRUE)
+options(scipen=999)
+library(tidyverse)    #Loads the tidyverse suite of packages
+library(Ecdat)        #Contains Wage Data
+library(knitr)        #kable() for HTML Tables
+```
+
+## Introduction
+
+In this lab assignment, make sure you work in order of the code chunks, and **knit** after you complete each code chunk.
+
+Consider the dataset `Wages1` from the `Ecdat` package.  
+```{r,echo=F}
+head(Wages1)
+```
+
+This observational dataset records the years experienced, the years schooled, the sex, and the hourly wage for 3,294 workers in 1987. *A Guide to Modern Econometrics* by Marno Verbeek utilizes this data in a linear regression context. According to Marno Verbeek, this data is a subsample from the US National Longitudinal Study. The purpose of this tutorial is to practice the creative process in exploratory data analysis of asking questions and then investigating those questions using visuals and statistical summaries. 
+
+As a member of the birth class of 1997, I do not have any clue of what the workforce looked like in 1987. It is your job to apply your detective skills to  the information hidden in this data. For future use, utilize the modified dataset`wage` according to the R code below:
+
+```{r}
+wage=as.tibble(Wages1) %>%
+  rename(experience=exper) %>%
+  arrange(school)
+head(wage)
+```
+
+## : Questions About Measures of Center
+
+### : 
+
+Use a figure to find what is the most common  number of years of experience found in the data (1 Points).
+
+First, use `geom_bar()` to investigate the distribution of level of experience found in `wage`.
+```{r}
+ggplot(data=wage) +
+  geom_bar(aes(x = experience))
+```
+
+### : 
+
+Now let's be a bit more precise.  Define a variable, `experience` by subsetting the tibble `wage`, and find its mode.  Unlike mean and median, mode does not have a built-in function ^[This is probably because the mode has several definitions with varying levels of precision.], so I have written one myself for you to use.  This will return the most common experience level, but then I want you to use the `nrow` function coupled with a logical operator to count the number of observations having exactly this level of experience.  (1.5 pts)
+
+```{r}
+# Create the function.
+getmode <- function(v) {
+   uniqv <- unique(v)
+   uniqv[which.max(tabulate(match(v, uniqv)))]
+}
+
+#student input
+experience<-wage[[1]]
+MODE<-getmode(experience)
+MODE
+nrow(wage[experience == MODE, ])
+
+```
+
+There are exactly **654** observations having the **9** years of experience.  
+
+### :
+
+Next, modify the code in question 1.2.2 to display the maximum level of schooling and the number of workers in the data that had that number of schooling. (1 pt)
+
+```{r}
+schooling <- wage[[3]]
+max(schooling)
+nrow(wage[schooling == 16, ])
+```
+
+
+The maximum number of years in school was **16** years which occurred **16** times in our sample. Fill in the blanks with the correct answers.
+
+## : Questions about Covariation
+
+### :
+
+Follow-up: Is there a relationship between level of schooling and level of experience? (1.5 Point)
+
+Use `geom_point()` to display a scatter plot representing the relationship between these two discrete numeric variables. Consider using `alpha=0.1` to indicate where the relationship is represented the best.
+
+```{r}
+ggplot(data=wage) +
+  geom_point(aes(x = schooling, y = experience), alpha = 0.1)
+```
+
+The years of experience seem to **decrease** as the years of schooling increases. 
+
+ 
+
+### : 
+
+Produce a similar plot describing the relationship between years of experience and wage.  (1 pt)
+
+```{r}
+ggplot(data=wage) +
+  geom_point(aes(x = experience, y = wage), alpha = 0.1)
+```
+
+### : 
+
+Does the relationship between hourly wage and years of experience differ between the sexes? (1 Points)
+
+Color your previous plot according to the variable `sex` to investigate. 
+
+```{r}
+ggplot(data=wage) +
+  geom_point(aes(x = experience, y = wage, color = sex), alpha = 0.1)
+```
+
+### : 
+
+Let's compute confidence intervals to be more precise.  We will spend time explicitly on inference for means later in the semester, but for now, recall that a $100(1-\alpha)\%$ confidence interval for a single mean is given by $\bar{x} \pm t_{\alpha, n-1} \frac{s_x}{n}$.  We saw how to use the `group_by` command in one of our student activities within the EDA lecture.  I would like you to group the `wages` data by sex, then fill in the blanks to produce approximately 95\% confidence intervals for average wage across the two genders.  Note: since n is so large here, I will simply use the z distribution as an appropriate approximation of the t. (2 pt) 
+
+
+```{r}
+wage %>% 
+  group_by(sex) %>%
+  summarize(n=n(),mean=mean(wage),se=sd(wage)/sqrt(n),
+            lb=mean - 1.96*se ,ub=mean + 1.96*se)
+```
+
+INTERPRETATION: We can be 95% confident that the population mean wage is different for men and women because the confidence intervals do not overlap.
+
+### : 
+
+Does the relationship between hourly wage and years of schooling differ between the sexes? (0.5 Points)
+
+Repeat the above interval process replacing `wage` with `school`. Does there seem to be a clear distinction between female and male regarding this relationship? 
+
+```{r}
+wage %>% 
+  group_by(sex) %>%
+  summarize(n=n(),mean=mean(school),se=sd(school)/sqrt(n),
+            lb=mean - 1.96*se ,ub=mean + 1.96*se)
+```
+
+INTERPRETATION: There is not a clear distinction between male and female in terms of years of schooling because the confidence intervals overlap significantly. 
+
+### :
+
+What is the relationship between hourly wage and the interaction between the years of experience and years of schooling? (0.5 Points)
+
+The graphic below summarizes the average hourly wage for the different combinations of schooling and experience level. The additional `facet_grid(~sex)` makes comparing the relationship of the three key numeric variables between the sexes quite easy.
+
+
+```{r}
+
+wage %>%
+  group_by(experience,school,sex) %>%
+  summarize(n=n(),mean=mean(wage)) %>%
+  ungroup() %>%
+  ggplot() +
+    geom_tile(aes(x=experience,y=school,fill=mean)) +
+  scale_fill_gradientn(colors=c("black","lightskyblue","white"))+
+    facet_grid(~sex) + theme_dark()
+
+```
+
+Question: What are some differences between the sexes regarding this relationship that are apparent in this chart? Write your answer in complete sentences below:
+
+It appears that, in general, males have a higher average wage than females For values between 7 and 10 years of schooling, it seems that males get paid much higher than females regardless of experience. This gap expands even larger from 12-16 years of schooling. The minimum average wage for males is significantly higher than the minimum average wage for females.
+

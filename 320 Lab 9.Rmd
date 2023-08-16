@@ -1,0 +1,71 @@
+---
+title: "320 Lab 9"
+author: "Max Sleek"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r}
+library(glmnet)
+library(MASS)
+library(faraway)
+library(lars)
+library(Metrics)
+data(meatspec, package = "faraway")
+head(meatspec)
+```
+
+#
+
+Partition the above data into training and testing data set.  Use the first 172 observations of `meatspec` as the training set.  The remaining 42 observation will be the test set.  From there, create your response and explanatory variables for the training set.  Recall that the response is `fat`.  (2pt)
+
+```{r}
+trainx<-as.matrix(meatspec[1:172,1:100])
+trainy<-as.matrix(meatspec$fat[1:172])
+testx<-as.matrix(meatspec[173:215,1:100])
+testy<-as.matrix(meatspec$fat[173:215])
+```
+
+
+# 
+
+Use `glmnet` to fit an initial Lasso Regression Model.  (2pt)
+
+```{r}
+fit = glmnet(trainx,trainy)
+plot(fit)
+```
+
+#
+
+Now use 5-fold cross-validation to choose the optimal tuning paramter $\lambda$. Your choice of $\lambda$ for this model should be the one that minimizes CV error. You should also mention what this $\lambda$ value is and in which index it occurs.  (2pt)
+
+```{r}
+cvfit<-cv.glmnet(trainx, trainy, nfolds = 5)
+cvfit$lambda.min
+which(fit$lambda == cvfit$lambda.min)
+coef(cvfit, s = "lambda.min")
+```
+
+
+#
+
+Now use this fitted model to predict on the test data.  Then compute the RMSE between these predictions and the test data response variable.  (2pt)
+
+```{r}
+library(Metrics)
+s = cvfit$lambda.min
+lasso_pred = predict(fit, s = s, newx = testx)
+rmse(testy, lasso_pred)
+```
+
+#
+
+Now find the $\lambda$ that minimizes cross-validation error within one standard error of the minimizer.  Show the resulting model coefficients, but you need not compute its performance metrics.  *Hint:  As a sanity check, you should have a more sparse model.  That is, you should have fewer non-zero coefficients in your fitted model, as this choice of $\lambda$ promotes shrinkage*. (2pt)
+
+```{r}
+cvfit$lambda.1se
+which(fit$lambda == cvfit$lambda.1se)
+coef(cvfit, s = "lambda.1se")
+```
+

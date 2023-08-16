@@ -1,0 +1,217 @@
+---
+title: "320 Analysis 1"
+author: "Max Sleek"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+# Instructions
+
+**Overview:** For each question, show your R code that you used to answer each question in the provided chunks. When a written response is required, be sure to answer the entire question in complete sentences outside the code chunks. When figures are required, be sure to follow all requirements to receive full credit. Point values are assigned for every part of this analysis. **Do not work with other students on this assignment. You are to complete this assignment by yourself.**
+
+**Helpful:** Make sure you knit the document as you go through the assignment. Check all your results in the created HTML file.
+
+**Submission:** Submit via an electronic document on Sakai. Must be submitted as an HTML file generated in RStudio. 
+
+# Introduction
+
+Universities are typically opaque, bureaucratic institutions. To be transparent to tax payers, many public schools, such as the University of North Carolina, openly report **[salary information](http://www.newsobserver.com/news/databases/public-salaries/)**. In this assignment, we will analyze this information from 2022 to answer pivotal questions that have endured over the course of time. The most 2020 salary data for UNC-Chapel Hill faculty and staff has already been downloaded in CSV format and titled *"Salary Data Export.csv"*.
+
+To answer all the questions, you will need the R package `tidyverse` to make figures and utilize `dplyr` functions.
+
+
+```{r setup, include=F}
+options(scipen=999)
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+```
+
+# Data Information
+
+Make sure the CSV data file is contained in the folder of your RMarkdown file. First, we start by using the `read_csv` function from the `readr` package found within the tidyverse. The code below executes this process by creating a tibble in your R environment named "salary".
+```{r, message=F}
+salary=read.csv("Salary Data Export.csv")
+```
+
+Now, we will explore the information that is contained in this dataset. The code below provides the names of the variables contained in the dataset.
+
+```{r}
+names(salary)
+```
+
+Next, we will examine the type of data contains in these different variables. 
+```{r}
+str(salary)
+```
+You will notice that the variable "Hire_Date" is recorded as a character. The following code will first modify the original dataset to change this to a date variable with the format *mm/dd/yyyy*. Then, we will remove the hyphens to create a numeric variable as *yyyymmdd*. Finally, in the spirit of tidyverse, we will convert this data frame to a tibble.
+
+```{r}
+salary$Hire_Date=as.Date(salary$Hire_Date, format="%m/%d/%Y")
+salary$Hire_Date=as.numeric(gsub("-","",salary$Hire_Date))
+salary=as_tibble(salary)
+```
+
+Now, we will use `head()` to view of first five rows and the modifications made to the original data. The rest of the assignment will extend off this modified dataset named `salary` which by now should be in your global environment.
+```{r}
+head(salary,5)
+```
+
+# Assignment
+
+
+## Part 1: Reducing the Data to a Smaller Set of Interest
+
+
+### Q1 *(2 Points)* 
+
+Create a new dataset named `salary2` that only contains the following variables:
+
+- "Last_Name"
+
+- "First_Name"
+
+- "Age"
+
+- "Hire_Date"
+
+- "Category"
+
+- "Salary"
+
+- "Department"
+
+- "Title"
+
+Then, use the `names()` function to display the variable names of `salary2`.
+```{r}
+salary2 <- subset(salary, select = c("Last_Name", "First_Name", "Age", "Hire_Date", "Category", "Salary", "Department", "Title"))
+names(salary2)
+```
+
+### Q2 *(2 Points)*
+
+Now, we modify `salary2`. Rename the variables "Last_Name","First_Name", and "Hire_Date" to "Last","First", and "Hire", respectively. Do this for a new dataset called `salary3` and use `names()` to display the variable names of `salary3`.
+```{r}
+salary3 <- rename(salary2, Last = Last_Name) %>%
+  rename(First = First_Name) %>%
+  rename(Hire = Hire_Date)
+names(salary3)
+```
+
+### Q3 *(2 Points)*
+
+Now, we modify `salary3`. Create a new variable called "HireYear" that only contains the first four digits of the variable "Hire_Date" in a new dataset named `salary4`. Use the function `str()` to ensure that your new variable "HireYear" reports the year of the date that the employee was hired.
+
+```{r}
+salary4 <- mutate(salary3, HireYear = as.numeric(substr(Hire, 1, 4)))
+str(salary4)
+```
+
+### Q4 *(2 points)*
+
+Now, we modify `salary4`. Create a new variable called "YrsEmployed" which reports the number of full years the employee has worked at UNC. Use the current year and assume that all employees are hired January 1. Create a new dataset named `salary5` and again use `str()` to display the variables in `salary5`.
+
+```{r}
+salary5 <- mutate(salary4, YrsEmployed = 2022 - HireYear)
+```
+
+### Q5 *(4 points)*
+
+Now, we modify `salary5` to create our final dataset named `salary.final`. Use the pipe `%>%` to make the following changes:
+
+- Drop the variables "Hire", "HireYear", and "First". 
+
+- Sort the observations first by "YrsEmployed" and then by "Salary", both in descending order from largest to smallest.
+
+- Rearrange the variables so that "YrsEmployed" and "Salary" are the first two variables in the dataset, in that order, without removing any of the other variables.
+
+After you have used the `%>%` to make these changes, use the function `head()` to display the first 12 rows of `salary.final`.
+
+```{r}
+salary.final <- subset(salary5, select = -c(Hire, HireYear, First)) %>%
+  arrange(desc(YrsEmployed)) %>%
+  arrange(desc(Salary)) %>%
+  subset(select = c(7, 4, 1, 2, 3, 5, 6))
+
+head(salary.final, 12)
+```
+
+## Part 2: Answering Questions Based on All Data
+
+In these questions,find the answer using code, and then answer the question using complete sentences below the code.
+
+### Q6 *(2 Points)*
+
+What is the average salary of employees with the status "Professor"?
+
+Code *(1 Point)*:
+```{r}
+Professors <- subset(salary.final, subset = Category == "Professor")
+mean(Professors$Salary)
+```
+
+Answer *(1 Point)*: (Place Answer Here in Complete Sentences)
+
+The average salary of employees with the status "Professor" is $205,171.
+
+## Part 3: Answering Questions Based on Summarized Data
+
+### Q7 *(4 Points)*
+
+Based off the data in `salary.final`, create a grouped summary based off combinations of "Department" and "YrsEmployed". Call the new tibble `deptyear_summary`. Your summarized tibble, `deptyear_summary`, should report all of the following statistics with corresponding variable names in the following order.
+
+- "n" = number of employees for each combination
+
+- "mean" = average salary for each combination
+
+- "sd" = standard deviation of salary for each combination.
+
+- "min" = minimum salary for each combination.
+
+- "max" = maximum salary for each combination
+
+In the process, make sure you use `ungroup()` with the pipe `%>%` to release the grouping so future work is no longer group specific. Following the creation of `deptyear_summary`, prove that your code worked by using `head()` to view the first 10 rows.
+
+```{r,warning=FALSE}
+deptyear_summary <- salary.final %>%
+  group_by(Department, YrsEmployed) %>%
+  summarize(count = n(), mean = mean(Salary, na.rm = TRUE), sd = sd(Salary, na.rm = TRUE), min = min(Salary), max = max(Salary), .groups = "keep") %>%
+  ungroup()
+head(deptyear_summary, 10)
+```
+
+### Q8 *(4 Points)*
+
+Using the summarized data in `deptyear_summary`, use the `dplyr` functions to identify the 3 departments that award the lowest average salary for employees who have been employed for 3 years. The output should include the 3 departments along with the corresponding years employed, which should all be 3, and the four summarizing statistics created. 
+
+Furthermore, explain why the standard deviation for at least one of the 3 departments in your list has a salary standard deviation of "NA" or "NaN". What does this mean and how did it occur?
+
+Code:
+```{r}
+filter(deptyear_summary, YrsEmployed == 3) %>%
+  arrange(mean) %>%
+  head(3)
+```
+
+Answer:
+All 3 Departments have a Standard Deviation of NA because they all have a count of 1. The standard deviation of any dataset with only 1 value is undefined. 
+
+
+### Q9 *(4 points)*
+
+Create a scatter plot using `geom_point()` along with fitted lines using `geom_smooth` with the argument `method="lm"` showing the linear relationship between average salary and the years employed. For this plot, use the summarized data in `deptyear_summary`. Following the plot, please explain what this plot suggests about the relationship between the salary a UNC employee makes and how many years that employee has served. Make reference to the figure and use descriptive adjectives (i.e. "strong", "weak", etc.) and terms (i.e. "positive", "negative", etc.) that are appropriate for discussing linear relationships.
+
+Code and Figure *(2 Points)*:
+```{r}
+ggplot(data = deptyear_summary) + 
+  geom_point(aes(YrsEmployed, mean)) +
+  geom_smooth(aes(YrsEmployed, mean), method = "lm") +
+  labs(title = "Years Employed With UNC vs. Average Salary", x = "Years Employed", y = "Average Salary")
+
+cor.test(deptyear_summary$YrsEmployed, deptyear_summary$mean)
+salarymodel <- lm(deptyear_summary$mean~deptyear_summary$YrsEmployed)
+salarymodel$coefficients[2]
+```
+
+Answer *(2 Points)*: (Place Answer Here in Complete Sentences)
+Due to the values above $500,000, the scatter plot is difficult to read. However, there is a weak positive semi-linear relationship between Years Employed and Average Salary. From running a correlation t test, we can further confirm this weak positive relationship. However, when dealing with values as high as salaries, a weak correlation can still be very influential for the values of a data set. By constructing a linear model, we can find that for every year employed, the average salary is expected to increase by 1,362 Dollars. While we can't very confident in a strong/significant relationship between Years Employed and Average Salary, we can acknowledge that there is at the very least a relationship present.

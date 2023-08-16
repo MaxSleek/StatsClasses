@@ -1,0 +1,140 @@
+---
+title: "320 Lab 4"
+author: "Max Sleek"
+date: '`r Sys.Date()`'
+output: html_document
+---
+
+The purpose of this lab is to refine you exploratory data analysis and programming skills.  These are quite useful diagnostic and intermediate tools in any full-scale analysis.  At times, I have given you a template of what I expect in a code chunk.  You will need to alter the all caps student input and remove the `eval = FALSE` in the code chunk header to get the code chunk to run correctly.  
+
+# Loops
+
+Recall the `loan50.csv` dataset we used in class.  I will read this in for you.  As a further reminder, recall that the **income** variable is quite skewed.  
+
+```{r}
+loan_dat<-read.csv("loan50.csv")
+income<-loan_dat[,5]
+boxplot(income)
+```
+
+## 
+Write a loop to identify outliers.  Use the criterion that outliers reside beyond the Tukey interval $[Q1 - 1.5IQR, Q3+1.5IQR]$.  
+
+```{r}
+Q1<-quantile(income, prob=.25)
+Q3<-quantile(income, prob=0.75)
+iqr<-IQR(income)
+
+#user defined loop 
+for (i in income){
+  if (i < (Q1 - 1.5*iqr) || i > (Q3 + 1.5*iqr)) {
+    print("Value is an outlier")
+  }
+  else {
+    print("Value is not an outlier")
+  }
+}
+```
+
+
+## 
+
+Now report on the difference between mean and median of income.  Given the sign of the answer, what kind of skewness does this data display?  
+
+```{r}
+mean(income) - median(income)
+# Given the sign, this indicates a right skew.
+```
+
+
+
+# Functions
+
+##
+
+Your **outliers** loop above finds the outlying *values*.  What if we would like to find the associated indices and remove them from the data?  Write a function that does precisely this.  
+
+```{r}
+
+removal<-function(vec){
+  Q1<-quantile(vec, prob=0.25)
+  Q3<-quantile(vec, prob=0.75)
+  iqr<-IQR(vec)
+
+  idx<-c()
+  for (i in 1:length(vec)){
+    if (vec[i] < (Q1 - 1.5*iqr) || vec[i] > (Q3 + 1.5*iqr)){
+      idx<-c(idx, i)
+    }
+  }
+vec <- vec[-idx]
+  return(vec)
+}
+
+```
+
+##
+
+Test this function on the income variable.  Assign this test variable the name `refined`; it should be of length 46.  
+
+```{r}
+refined <- removal(income)
+refined
+```
+
+##
+Plot a boxplot of the `refined` dataset.  Explain why even after removing four outlying datapoints in the original dataset, `refined` is not devoid of outliers.  
+
+```{r}
+boxplot(refined)
+
+# Now that we have removed the outliers from the income dataset, the refined dataset now has outliers of its own.
+```
+
+
+##
+
+To prove just how much more robust the median is than the mean, find the difference between mean of income and the mean of refined.  Repeat this difference for median.  
+
+```{r}
+mean(income) - mean(refined)
+median(income) - median(refined)
+```
+
+
+
+
+# Conditionals
+
+Now your function above likely (though not certainly) already used a conditional statement in removing outliers.  I would also like you to practice using a conditional statement to ensure proper user-input.   
+
+That is, your function above may work correctly when the right *class* of argument is passed into it.  That is, when a numerical vector input is provided, as the function expects, it proceeds with little difficulty.  That said, unless you have explicitly already accounted for various input types, this is not the case if a non-numeric argument is supplied. With that in mind, add a conditional statement to your above function that will check the type of argument supplied to the function.  If it is anything but numeric, print ``Error: non-numeric input supplied".
+
+Finally, define a character variable `input<-"a"`.  Test your adapted function on this non-numeric input.  
+
+*Hint:  This function should more or less be exactly what you have for question 2.1 wrapped in an `if-else` statement*. 
+
+```{r}
+removal<-function(vec){
+    if (class(vec) == "numeric") {
+  Q1<-quantile(vec, prob=.25)
+  Q3<-quantile(vec, prob=0.75)
+  iqr<-IQR(vec)
+
+  idx<-c()
+  for (i in 1:length(vec)){
+    if (vec[i] < (Q1 - 1.5*iqr) || vec[i] > (Q3 + 1.5*iqr)){
+      idx<-c(idx, i)
+    }
+  }
+vec <- vec[-idx]
+  return(vec)
+}
+else {
+  print("Error: non-numeric input supplied")
+}
+  }
+
+input<-"a"
+removal(input)
+```

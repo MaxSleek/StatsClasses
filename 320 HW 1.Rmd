@@ -1,0 +1,156 @@
+---
+title: "320 HW 1"
+author: "Max Sleek"
+date: "`r Sys.Date()`"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+# Problems:
+  
+```{r}
+  # Section 3.2.4 Exercises 1-5; 
+  # Section 3.3.1 Exercises 1-2, 5; 
+  # Section 3.6.1 Exercises 1-5. 
+```
+
+# Packages
+```{r}
+library(ggplot2)
+```
+
+# Section 3.2.4
+
+#1: Run ggplot(data = mpg). What do you see?
+
+```{r}
+ggplot(data=mpg)
+  # The output is a blank graph. More arguments are needed.
+```
+
+#2: How many rows are in mpg? How many columns?
+ 
+```{r}
+nrow(mpg)
+ncol(mpg)
+str(mpg)
+  # There are 234 rows and 11 columns. 
+```
+
+#3: What does the drv variable describe? Read the help for ?mpg to find out.
+
+```{r}
+?mpg 
+  # By using the help function for mpg, we can see that drv describes that type of drive train in the vehicle.
+```
+
+#4: Make a scatterplot of hwy vs cyl.
+
+```{r}
+ggplot(data=mpg) +
+  geom_point(mapping=aes(x=cyl, y=hwy))
+```
+
+#5: What happens if you make a scatterplot of class vs drv? Why is the plot not useful?
+
+```{r}
+ggplot(data=mpg) +
+  geom_point(mapping=aes(x=drv, y=class))
+  # Since drv and class are categorical variables, not numeric, a scatterplot is not useful. We cannot see how many are in each category.
+```
+
+# Section 3.3.1
+
+#1: What’s gone wrong with this code? Why are the points not blue?
+```{r}
+ggplot(data = mpg) + 
+  geom_point(mapping = aes(x = displ, y = hwy, color = "blue"))
+  # The color argument needs to be outside of the aes function. The color argument is an argument of the geom_point function. The proper code would be:
+ggplot(data = mpg) + 
+  geom_point(mapping = aes(x = displ, y = hwy), color = "blue")
+```
+
+#2: Which variables in mpg are categorical? Which variables are continuous? (Hint: type ?mpg to read the documentation for the dataset). How can you see this information when you run mpg?
+```{r}
+str(mpg)
+  #By running the str function, we can see the type of variable and a few examples of observations. Manufacturer, model, trans, drv, fl, and class are categorical. Displ, year, cyl, cty, and hwy are continuous. 
+```
+
+#5: What does the stroke aesthetic do? What shapes does it work with? (Hint: use ?geom_point)
+
+```{r}
+# The stroke aesthetic works on shapes that have a border. It modifies the width of that border.
+```
+
+# Section 3.6.1
+
+#1: What geom would you use to draw a line chart? A boxplot? A histogram? An area chart?
+  
+```{r}
+  # Line chart: geom_line
+  # Boxplot: geom_boxplot
+  # Histogram: geom_histogram
+  # Area chart: geom_area
+```
+
+#2: Run this code in your head and predict what the output will look like. Then, run the code in R and check your predictions.
+
+```{r}
+ggplot(data = mpg, mapping = aes(x = displ, y = hwy, color = drv)) + 
+  geom_point() + 
+  geom_smooth(se = TRUE)
+  # I think that a scatterplot will be created, though I'm not sure what geom_smooth does.
+  # geom_smooth created lines to help with visuals.
+```
+
+#3: What does show.legend = FALSE do? What happens if you remove it? Why do you think I used it earlier in the chapter?
+  
+```{r}
+# show.legend removes the legend from the plot. without the show.legend function, R assumes the function to be true ans hows the legend. show.legend can be used when the data is purely numerical and does not to be separated. A legend would not be necessary.
+```
+
+#4: What does the se argument to geom_smooth() do?
+  
+```{r}
+# It shows (or doesn't show) the confidence interval around the smooth function's output.
+```
+
+#5: Will these two graphs look different? Why/why not?
+
+```{r}
+ggplot(data = mpg, mapping = aes(x = displ, y = hwy)) + 
+  geom_point() + 
+  geom_smooth()
+
+ggplot() + 
+  geom_point(data = mpg, mapping = aes(x = displ, y = hwy)) + 
+  geom_smooth(data = mpg, mapping = aes(x = displ, y = hwy))
+
+# They will look the same. The arguments used in the different pieces of code can be moved around while still maintaining the same output.
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

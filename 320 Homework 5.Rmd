@@ -1,0 +1,120 @@
+---
+title: "320 Homework 5"
+author: "Max Sleek"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse) 
+library(dplyr)
+library(tidyr)
+```
+
+This homework will familiarize you with the techniques surrounding cleaning data.  More specifically, we will merge and tidy previously disparate and unwieldy data sets.  I have created three such artificial data sets for your consideration.  They list demographic, treatment, and outcome information for up to five patients at a fictitious clinic.  
+
+```{r}
+demographics <- data.frame(
+  id = c("P1", "P2", "P3"),
+  age = c(40, 54, 47),
+  country = c("GER", "JPN", "BRA"),
+  stringsAsFactors = FALSE
+)
+
+treatment_info <- data.frame(
+  id = c("P1", "P3", "P4", "P5"),
+  control_group = c(0,1,0,1),
+  treatment_group = c(1,0,1,0),
+  dose = c(0.5, 0, 0.9, 0)
+)
+adverse_events <- data.frame(
+  id = c("P1", "P1", "P3", "P4"),
+  ailment = c("Headache", "Neutropenia", "Constipation", "Tachycardia"),
+  onset_date = c("2020-12-03", "2021-01-03", "2020-11-29", "2021-01-27"),
+  stringsAsFactors = FALSE
+)
+
+demographics
+treatment_info
+adverse_events
+```
+
+# Joins 
+Rather than viewing these data sets in isolation, we might aim to stitch together the shared information into a holistic conception of patient experience.  
+
+## 
+
+First `left_join` demographics to treatment_info by the shared key.  Store this new dataframe as `demo_treat`.  
+
+### 
+
+Display the entirety of `demo_treat`. 
+
+```{r}
+demo_treat <- left_join(treatment_info, demographics, by = "id")
+demo_treat
+```
+
+### 
+Now repeat the same process, but `inner_join` the two original data sets rather than `left_joining` them.  Call this new data set `DEMO_TREAT`. Print the entirity of this dataframe as well. 
+
+```{r}
+DEMO_TREAT <- inner_join(treatment_info, demographics, by = "id")
+DEMO_TREAT
+```
+
+### 
+
+Comment on the number of rows in `demo_treat` and `DEMO_TREAT`.  Why are they not equal?  
+
+The number of rows is different because inner join does not allow for missing values; since it is sorted by id, only P1 and P3 are present since those are the only indexes present in both data sets. For the left_join function, the values of demographics that match the indexes in treatment info are essentially being added to the treatment info dataset. 
+
+## 
+
+**inner_join** `adverse events` to `DEMO_TREAT`.  Store this as `Final`.  Would we expect a different result if we **inner_joined** to `demo_treat`? 
+
+```{r}
+Final <- inner_join(adverse_events, DEMO_TREAT, by = "id")
+```
+
+We would expect a different result if we inner_joined to demo_treat because P4 would be considered a matching index and therefore would be included in the join funtion. 
+
+# Tidy
+
+## 
+
+`Final` is not a tidy data set because one of the original datasets was also untidy.  Which original data set was untidy and explain why this was the case.  
+
+The treatment_info data set could be considered untidy because the control group and treatment group are in different columns. We can merge them into one column titled `group`.
+
+## 
+
+Correct `Final`, and call this `Tidy_Final.  Print the tidy data set to the screen.  *Hint: If you have identified the correct data frame and issue, the fix doesn't even require a tidy command.  Rather, it should just collapse information into a preexisting column and delete extraneous ones.*
+
+```{r}
+for (i in 1:(count(Final))){
+  if (Final$control_group[i] == 0){
+    Final$group[i] <- "Treatment"
+  }
+  else{
+    Final$group[i] <- "Control"
+  }
+}
+Final <- Final %>% subset(select = -c(4,5))
+Final <- relocate(Final, group, .before = dose)
+```
+
+##
+
+A more direct application of the tidy commands can be seen when applying them to `table2` below.  Take particular care to observe the `type` variable.  
+
+```{r}
+head(table2)
+```
+
+Tidy up `table2` using one of the tidy commands.  
+
+```{r}
+table2 <- table2 %>% pivot_wider(names_from = type, values_from = count)
+```

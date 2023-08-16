@@ -1,0 +1,100 @@
+---
+title: "Lab 10"
+author: "Max Sleek"
+date: "11/2/2022"
+output: html_document
+---
+
+The first three questions of this lecture will be review of old concepts, mostly revolving around programmatic principles.  The final two will require you to write functions that are necessary to the K-Nearest-Neighbors algorithm, and as such will be more akin to our classification lecture.  
+
+As always, you should change the `eval = FALSE` syntax within any code chunk where it is present.  
+
+```{r}
+data("mtcars")
+my_data <- mtcars
+```
+
+# Q1
+
+Write a loop to count how many observations of the `hp` variable lie above the mean of this variable.  (2pt)
+
+**15**
+
+```{r}
+
+hp<-my_data[,4]
+
+#loop to output counter
+counter = 0
+for (i in hp){
+  if (i > mean(hp)){
+    counter = counter + 1
+  }
+}
+
+counter
+```
+
+
+# Q2 
+
+Fill the missing values in `Solar.R` below with global-mean imputation. Print a summary of the resulting variable to prove it no longer has missing values. (2pt)
+
+```{r}
+library(MASS)
+data("airquality")
+data_2<-airquality
+summary(airquality)
+
+#student input
+data_2$Solar.R[is.na(data_2$Solar.R)] = mean(data_2$Solar.R, na.rm = TRUE)
+summary(data_2$Solar.R)
+```
+
+# Q3
+
+Why hasn't the mean of the variable changed while filling data during the above imputation?  (2pt)
+
+*Since the value we are inputting for each missing value is the mean of the variable, the impoutation won't change the mean. It will, however, change the median and measures of spread.*. 
+
+# Q4
+
+We have seen multiple uses of the Euclidean Distance, $d(p,q)=\sqrt{(p-q)^2}$ or more explicitly between two vectors $A$ and $B$ or dimension $p$, $\sqrt{\sum_{i=1}^p{(A_i-B_i)^2}}$.  Write a function, `euclid` that calculates this distance for two vectors of this type.  Then test the function on a and b below; you should get a Euclidean Distance of 5.29. (2pt)
+
+```{r}
+
+euclid <- function(vec1, vec2){
+  dist = sqrt(sum((vec1-vec2)^2))
+  return(dist)
+}
+
+a <- c(2, 6, 7, 7, 5, 13, 14)
+b<- c(3, 5, 5, 3, 7, 12, 13)
+
+euclid(a,b)
+
+
+```
+
+# Q5 
+
+Write a function that uses `euclid` above to compute the K-Nearest-Neighbors.  Note, you need not do anything with the neighbors other than identify them. I will then use this function to find the 5 nearest neighbors to the first observation of the `iris` dataset. (2pt) ^[*Hint:  This function should take in data -- x -- the observation -- obs -- to which you are finding the k-nearest-neighbors and the number of nearest neighbors --k. It should also require only four lines of code -- one to compute distances, one to sort them, one to assign indices to the sorted distances, and one to return the outupt. I used an `apply` function to look over the rows of my data x and find the `euclid` between the observation and that given row.  Then, I can used the sort command to place the distances in descending order and only retained the first k of the sorted distances.  Finally, a `which` command can be used to find the indices corresponding to your sorted distances from a line above.  Ultimately return the indices and the distances themselves. If you have written the function correctly, the five nearest neighbors should be points 17, 4, 39, 27, and 28 in that order, and their Euclidean Distances should all be within .15. *]
+
+
+
+```{r}
+nearest_neighbors = function(x, obs, k){
+  dista = apply(x, MARGIN = 1, euclid, obs)
+  distances = sort(dista)[1:k]
+  neighbors = which(dista %in% distances)
+  print(neighbors)
+  return(dista[neighbors])
+}
+
+x = iris[2:nrow(iris),]
+obs = iris[1,]
+nearest_neighbors(x[,1:4], obs[,1:4],5)
+```
+
+
+

@@ -1,0 +1,92 @@
+---
+title: "Lab 1"
+author: "Max Sleek"
+date: "7/6/2022"
+output: 
+  html_document:
+    number_sections: true
+---
+
+Alter the below code chunks to complete the lab. Also, ensure you include your name in the `author` portion of this header. When finished, knit your file to an html and submit this to your TA for grading.  
+
+
+This first lab is meant to get you acquainted with the data visualization process in R.  We will primarily be using the `Seatbelts` dataset which reports aggregate monthly automobile casualties in Great Britain from the year 1969 to 1979.  
+
+# Initial Inspection 
+
+1) Include the `datasets` package. Then read in the `Seatbelts` dataset, and print the first five rows (0.5pt).  
+```{r}
+library(datasets)
+head(Seatbelts, 5)
+```
+
+2) Check the dimension of the data, and find any missing observations (if they exist) (0.5pt).  
+```{r}
+dim(Seatbelts)
+which(Seatbelts == NA)
+```
+
+3) Use the `as.data.frame` command to coerce the `Seatbelts` into a dataframe, and store it in a variable called `dat` (0.5pt).  
+```{r}
+dat <- as.data.frame(Seatbelts)
+```
+
+4) Find the median of the `drivers` variable in `dat` (0.5pt).  
+```{r}
+median(dat$drivers)
+```
+
+# Visualization
+
+1) Include the `tidyverse` library, and create a bar plot for the `VanKilled` variable within `dat`.  Add color to the bars of this plot, and label the horizontal and vertical axes "VanKilled" and "Frequency" respectively (2pt).  
+```{r}
+library(tidyverse)
+ggplot(data=dat) +
+  geom_bar(aes(x = VanKilled), color = "skyblue", fill = "white") +
+  labs(x = "VanKilled", y = "Frequency")
+```
+
+2) Next create a scatterplot relating `DriversKilled` to `PetrolPrice` and coloring the points according to `VanKilled`.  Remark as to why it might make sense that the trend appears to be negative (2pt).  
+```{r}
+ggplot(data=dat) +
+  geom_point(aes(x=DriversKilled, y = PetrolPrice, color = VanKilled))
+# As the price of oil goes down, gasoline becomes cheaper, meaning more drivers on the road and more possibilities for accidents resulting in death.
+```
+
+Next, we will pivot to the `volcano` dataset.  This is a matrix reporting topographical information on the Maunga Whau Volcano.  More specifically, entries report height of the volcano at specific points along the terrain.  I have already included the necessary packages, and I have done some data wrangling (which we will learn about in the coming lectures) to make this data conformable to a heatmap.  
+
+1) *Before* I alter the data via wrangling, check the class, dimension, and type of the volcano matrix (2pt). 
+```{r, warning=FALSE}
+library(tidyr)
+library(tibble)
+library(hrbrthemes)
+library(dplyr)
+
+#student input
+class(volcano)
+dim(volcano)
+typeof(volcano)
+```
+
+2) *After* the data has been manipulated, create a heatmap plotting X against Y and filling according to Z.  Include horizontal and vertical axis labels as well as a title.  In terms of X and Y coordinates, report the approximate position of the crater (spout) of the volcano (2pt).  
+```{r, warning=FALSE}
+# Heatmap 
+volcano %>%
+  
+  # Data wrangling
+  as_tibble() %>%
+  rowid_to_column(var="X") %>%
+  gather(key="Y", value="Z", -1) %>%
+  
+  # Change Y to numeric
+  mutate(Y=as.numeric(gsub("V","",Y))) %>%
+  
+  ggplot() %>% +
+    geom_tile(aes(X, Y, fill = Z)) +
+    labs(x= "X Coordinate", y = "Y Coordinate", title = "Volcano Hieght") +
+    scale_fill_distiller(palette = "Spectral")
+              
+# Find the spout: I approximated the coordinates to be 33,30
+volcano[30, 33]
+# Guess: 149
+```

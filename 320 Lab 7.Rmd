@@ -1,0 +1,70 @@
+---
+title: "320 Lab 7"
+author: "Max Sleek"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+The inference that we have seen within the Modeling 1 lecture has all been catered to means.  However, recall from 155 that we also have analogous procedures for inference for proportions.  This lab will elucidate exactly these procedures.  
+
+To this end, recall the Central Limit Theorem for one proportion.  That is, for indepedent observations of a sufficient sample size the sample proportion has an unbiased and normal sampling distribution.  More carefully, $\hat{P} \sim N(P, \sqrt{\frac{P(1-P)}{n}})$.  Often times in practice we do not have the true P, so we use the substitute the estimator $\hat{P}$ to estimate this standard error.  That said, when the null hypothesis confers upon us an assumption about the true $P$, we are at liberty to leverage this information.  
+
+# 
+
+Write a function, similar to `ttest` in the Modeling 1 lecture, called `ztest`.  I have included for you the name as well as the necessary arguments.  This function should take the number of observations adhering to the proportion criteria, $x$, as well as the sample size and compute a sample proportion, $\hat{p}$.  Then it should use this point estimate to create a test statistic and corresponding two sided p-value.  The function should then conclude according to this p-value (2pt).  
+
+Remember that you will have to delete the `eval = FALSE` component of the r header to execute these code chunks.  
+
+
+```{r, eval = TRUE}
+ztest = function(x, n, h0, alpha){
+  phat = x/n
+  z = (phat - h0)/(sqrt((h0*(1-h0))/n))
+  pval = 2 *(pnorm(-abs(z)))
+  conclusion = if (pval<alpha){
+    "Reject Null"
+  }else{
+    "Cannot Reject Null"
+  }
+  return(list(conclusion, pval, z))
+}
+```
+
+#
+
+I have a belief that roughly 15\% of the people in my graduate department have blue eyes.  In reality, out of a department with 105 students, 18 have blue eyes.  Formulate this scenario as a hypothesis test and submit it to the `ztest` function at the $0.01$ significance level (1pt) . 
+
+```{r}
+ztest(18, 105, 0.15, 0.01)
+```
+
+#
+
+You should have gotten a conclusion of failing to reject the null.  Write a *loop* that will compute how many *more* student would need to have blue eyes before I had sufficient evidence to reject the null.  You can use hard coding to check your answer, but the actual procedure itself should be soft coded as a loop (2pt).  
+
+
+```{r, eval = TRUE}
+#initialize variables
+x = 18
+alpha = 0.01
+pval = 0.5385
+while(pval>alpha) {
+  x = x + 1
+  pval = ztest(x, 105, 0.15, alpha)[2]
+}
+
+print(pval)
+x-18
+# 8 Students
+```
+
+#
+
+R has built-in functions to accomplish this task as well.  When the sample size is sufficiently large -- $P, 1-P \geq 10$ -- the `prop.test` function can be used analogously to our function above.  It structure is as follows: `prop.test(x, n, p = NULL, alternative = "two.sided", correct = TRUE)`.  Note, the correction referenced is the Yates correction and should be set to FALSE to get a mathematically equivalent p-value.  
+
+Test your function against this function to ensure you get the same p-value for the scenario at hand (1pt).  
+
+```{r}
+prop.test(26, 105, p = 0.15, alternative = "two.sided", correct = FALSE)
+# Yes, we get the same p value.
+```

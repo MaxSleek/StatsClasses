@@ -1,0 +1,165 @@
+---
+title: "320 HW 6"
+author: "Max Sleek"
+date: "`r Sys.Date()`"
+output: html_document
+---
+```{r}
+
+library(tidyverse) 
+```
+
+# 
+
+Below I have generated 100 random observations of the $N(80,6)$ random variable.  
+For sake of argument let's assume that these data represent the grades on a particular exam
+where the instructor *intended* the average to be an 85.   It is clear that these 100 observations do not have a mean of exactly an 85, but your task is to determine if they are far enough from the intended grade center to warrant concern on the part of the instructor.  
+
+```{r}
+set.seed(150)
+generated<-rnorm(100, 80, 6)
+
+#sourcing user defined function 
+ttest = function(obs, h0, alpha){
+  n=length(obs)
+  
+  
+  if(n>=30){
+     condition="CLT satisfied.  T will approximate Z well with specified degrees of freedom"
+  }
+  
+  else{
+    condition= "Insufficient sample size.  Using T-test"
+  }
+  
+  ts=(mean(obs,na.rm=T)-h0)/(sd(obs, na.rm =T)/sqrt(n))
+  pval=2*pt(-abs(ts), df=n-1)
+  
+  conclusion = if(pval<alpha){
+    "Reject Null"} else{
+      "Fail to Reject Null"
+    }
+  
+  plot=ggplot()+geom_histogram(aes(x=obs), fill="lightskyblue1")+theme_minimal()+geom_vline(xintercept=h0)
+  return(list(ts=ts, condition=condition, pval=pval, conclusion=conclusion, plot=plot))
+}
+
+```
+
+##
+
+That is, use user-defined `ttest` function from student activity 1.1 in lecture to test, at the 99\% confidence level, if the mean of the generated data is statistically *different* from the intended mean of 85.  For you convenience, I have already sourced that function.  
+
+```{r}
+#student input
+ttest(generated, 85, 0.01)
+```
+
+## 
+
+Give a careful interpretation of this result in terms of the null hypothesis.  
+Our null hypothesis is that the true mean of the test scores is 85. Since our p-value is near-0, we can reject this null and say with 99% confidence that the true mean of the test scores is different than 85.
+
+
+##
+
+Notice that I slightly altered the plotting command within our user-defined function.  I changed it from a bar plot to a histogram.  Explain why this was necessary.  
+
+If we change geom_histogram to geom_bar, the output graph will be basically invisible. A histogram is continuous across one variable and much easier to see.
+
+#
+
+I will now let you create your own data set to be analyzed.  
+
+
+```{r}
+
+nonpaired = function(group1, group2, h0, alpha){
+  
+  n1=length(group1)
+  n2=length(group2)
+  
+  #adopt the convention that diff = group1-group2
+  xbar1 = mean(group1, na.rm=T)
+  xbar2 = mean(group2, na.rm=T)
+  s1 = sd(group1, na.rm=T)
+  s2 = sd(group2, na.rm=T)
+  spool = ((n1-1)*s1+(n2-1)*s2)/(n1+n2-2)
+  
+  #condition for pooling standard deviation
+  
+  if ((s1/s2>0.9) && (s1/s2<1.1)){
+    P = "Using Pooled Standard Deviation"
+    SE = spool*sqrt((1/n1)+(1/n2))
+    ts=((xbar1-xbar2)-h0)/SE
+    pval=2*pt(-abs(ts), df=(n1+n2-2))}
+  else{
+    P = "Not Pooling Standard Deviations"
+    SE = sqrt((s1^2/n1)+(s2^2/n2))
+    ts=((xbar1-xbar2)-h0)/SE
+    pval=2*pt(-abs(ts), df=(min(n1,n2)-1))
+  }
+
+  conclusion = if(pval<alpha){
+    "Reject Null"} else{
+      "Fail to Reject Null"
+    }
+  return(list(P, ts=ts, pval=pval, conclusion=conclusion))
+  }
+```
+
+##
+
+Use the `sapply` command to create two groups of size 50 having means 50 and 51 respectively each with standard deviation 2.  Store this in a variable called `new_dat` and print it to the screen. 
+
+```{r}
+set.seed(123)
+#student input 
+new_dat <- sapply(50:51, rnorm, n = 50, sd = 2)
+new_dat
+```
+
+##
+
+With the seed that I have set for you, you should see that the precise mean of group 1 (the first column) is 50.068 while group 2 is 51.292. Use the `nonpaired` user-defined function to test if group 1 has a statistically significant different mean than group 2 at the 90\% confidence level.  
+
+```{r}
+nonpaired(new_dat[,1], new_dat[,2], 0, 0.1)
+```
+
+# 
+
+Below I have read in a data set from github ^[again take note of another of the way to webscrape a csv file].  
+
+```{r}
+
+library(dplyr)
+PATH <- "https://raw.githubusercontent.com/guru99-edu/R-Programming/master/poisons.csv"
+df <- read.csv(PATH) %>%
+select(-X) %>% 
+mutate(poison = factor(poison, ordered = TRUE))
+glimpse(df)
+
+
+```
+
+
+##
+
+Use ggplot to give a side-by-side boxplot representation of the survival time for each level of the `poison` variable.  
+
+```{r}
+ggplot(data = df, aes(x = time, group = poison, color = poison)) +
+  geom_boxplot()
+```
+
+## 
+
+Now perform a one-way ANOVA on the data being sure to check the diagnostic plots as discussed in lecture. 
+```{r}
+aov <- aov(time ~ poison, data = df)
+aov
+plot(aov,1)
+plot(aov,2)
+summary(aov)
+```

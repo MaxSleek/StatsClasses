@@ -1,0 +1,135 @@
+---
+title: "320 Homework 2"
+author: "Max Sleek"
+date: "`r Sys.Date()`"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+**Note: Throughout this document, I included the head() function, because if I didn't, R would knit and produce all 336,776 rows of flights, causing my knitted document to be 16,000 pages long.**
+
+# Problems:
+  
+```{r}
+# Section 5.2.4 exercises 1-3; 
+# Section 5.3.1 exercises 2-4;
+# Section 5.4.1 exercises 2-4.
+```
+
+# Packages and Stuff
+```{r}
+library(ggplot2)
+library(nycflights13)
+library(tidyverse)
+flights <- data.frame(flights)
+as_tibble(flights)
+```
+
+# Section 5.2.4
+
+**1. Find all flights that: **
+
+```{r}
+# Had an arrival delay of two or more hours
+head(filter(flights, arr_delay >= 120))
+# Flew to Houston (IAH or HOU)
+head(filter(flights, dest == "IAH" | dest == "HOU"))
+# Were operated by United, American, or Delta
+head(filter(flights, carrier == "UA" | carrier == "AA" | carrier == "DL"))
+# Departed in summer (July, August, and September)
+head(filter(flights, month %in% c(7, 8, 9)))
+# Arrived more than two hours late, but didn’t leave late
+head(filter(flights, arr_delay >120 & dep_delay <=0))
+# Were delayed by at least an hour, but made up over 30 minutes in flight
+head(filter(flights, dep_delay >=60, arr_delay <30))
+# Departed between midnight and 6am (inclusive)
+head(filter(flights, dep_time >=0, dep_time <=600))
+```
+
+**2. Another useful dplyr filtering helper is between(). What does it do? Can you use it to simplify the code needed to answer the previous challenges?**
+
+The between function can be used within the filter function to return a subset of a data frame within certain boundaries. Yes, we can use it to simplify the previous code. For example:
+
+```{r}
+head(filter(flights, between(month, 7, 9)))
+```
+
+**3. How many flights have a missing dep_time? What other variables are missing? What might these rows represent?**
+
+```{r}
+head(filter(flights, is.na(dep_time)))
+# 8255 values missing dep_time
+Missing_Values <- is.na.data.frame(flights)
+# By saving the is.na function to a matrix, I was able to sort it and detect which variables had missing values. I'm sure there is an easier way, but I found that the other variables were: dep_delay, arr_time, arr_delay, and air_time. Since these are all time-related values, these rows might represent flights that never took off, or crashed during flight. 
+```
+
+**4. Why is NA ^ 0 not missing? Why is NA | TRUE not missing? Why is FALSE & NA not missing? Can you figure out the general rule? (NA * 0 is a tricky counterexample!)**
+
+(I accidentally did #4, but why not leave it in for practice). NA ^ 0 is not missing because any number to the power of 0 is 1. If we assign x to NA ^ 0, x will be stored as 1. NA | TRUE is not missing because x is stored as TRUE, not NA. Similarly, FALSE & NA is not missing because x is stored as FALSE. see below.
+
+```{r}
+x <- NA ^ 0
+x
+x <- NA | TRUE
+x
+x <- FALSE & NA
+x
+```
+
+
+# Section 5.3.1
+
+**2. Sort flights to find the most delayed flights. Find the flights that left earliest.**
+
+```{r}
+# Most delayed flights
+head(arrange(flights, desc(dep_delay)))
+# Flights that left earliest
+head(arrange(flights, dep_delay))
+```
+
+**3. Sort flights to find the fastest (highest speed) flights.**
+
+```{r}
+head(arrange(flights, desc(distance/air_time)))
+```
+
+**4. Which flights traveled the farthest? Which traveled the shortest?**
+
+```{r}
+# Farthest
+head(arrange(flights, desc(distance)))
+# Shortest
+head(arrange(flights, distance))
+```
+
+# Section 5.4.1
+
+**2. What happens if you include the name of a variable multiple times in a select() call?**
+
+Nothing happens, the variable only appears once. See Below.
+
+```{r}
+head(dplyr::select(flights, year, dep_delay, year))
+```
+
+**3. What does the any_of() function do? Why might it be helpful in conjunction with this vector? vars <- c("year", "month", "day", "dep_delay", "arr_delay")**
+
+The any_of() function operates within a select function. If you store the desired variable names in a vector, then place the name of the vector in any_of(), those variables will be selected from the data frame. This is useful when there is many variables/columns. See Below.
+
+```{r}
+vars <- c("year", "month", "day", "dep_delay", "arr_delay")
+head(dplyr::select(flights, any_of(vars)))
+```
+
+**4. Does the result of running the following code surprise you? How do the select helpers deal with case by default? How can you change that default?**
+
+I'm not surprised that this argument exists, though it is a bit surprising that the case of "TIME" doesn't matter. The select helpers are defaulted to ignore case. This can be fixed with the code below.
+
+```{r}
+head(select(flights, contains("TIME")))
+# Make select helpers case sensitive
+head(select(flights, contains("time", ignore.case = FALSE)))
+```
+

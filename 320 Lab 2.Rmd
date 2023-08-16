@@ -1,0 +1,136 @@
+---
+title: "320 Lab 2"
+author: "Max Sleek"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r , include=FALSE}
+# This is a good place to put libraries required for using the ggplot function
+knitr::opts_chunk$set(echo = TRUE)
+options(scipen=999)
+library(tidyverse) #Loads the dplyr package for data manipulation
+library(nycflights13) #Loads the nycflights13 package for flights data
+library(knitr)        #kable() for HTML Tables
+library(kableExtra)   #HTML Table Styling
+```
+
+# Lab 1a: Basic Data Transformation
+
+## Introduction
+
+The main purpose of this tutorial is to put together 4 key functions from **[dplyr](https://dplyr.tidyverse.org/reference/index.html)**. The functions and their purposes are listed as follows:
+
+- `filter()` *Selects Observations Based on Values*
+
+- `arrange()` *Sorts Observations Based on Criteria*
+
+- `select()` or `rename()` *Selects, Deselects, Renames, and Reorders Variables*
+
+- `mutate()` or `transmute()` *Creates New Variables Which Were Originally Nonexistant*
+
+
+You will need to modify the code chunks so that the code works within each of chunk (usually this means modifying anything in ALL CAPS). You will also need to modify the code outside the code chunk. When you get the desired result for each step, change `Eval=F` to `Eval=T` and knit the document to HTML to make sure it works. Do not work out of order or skip around. After you complete the lab or by the end of class, you should submit your HTML file to Sakai.
+
+## Part 1: The Uniqueness of Flight Numbers
+
+### (1 Points)
+
+Using `filter()`, start by creating a new tibble called **f1a** that only contains records from flight number 807.
+```{r, eval = F}
+f1a<-filter(flights, flight == 807)
+```
+
+### (1 Points)
+Now, apply `select()` to create a new dataset **f1b** based on **f1a** only containing variables "flight", "carrier", "origin", and "dest".
+
+```{r, eval = F}
+f1b<-select(f1a, flight, carrier, origin, dest)
+```
+
+### (1 Points)
+
+Rename the variable "dest" to "destination" in **f1c**.
+```{r, eval = F}
+f1c <- rename(f1b, destination = dest)
+```
+
+### (1 Points)
+Because **f1c** only contains records for flight number 807, sorting by flight number is irrelevant. Create a new dataset **f1d** that is identical in content to **f1c** but is sorted by "carrier" in descending order. Use the function `head()`to display the first 5 rows of the data in **f1d**.
+
+```{r, eval = F}
+f1d<-arrange(f1c, carrier, decreasing = TRUE)
+head(f1d)
+```
+
+
+### (1 Points)
+
+Answer the following questions using the output from the previous question:
+
+May we conclude that flight numbers can be mapped to a unique carrier? (*Yes/No*)
+
+Why or why not? 
+
+**No, we cannot. There are a few values for flight 807 that are differening carriers.**
+
+## Piping
+
+
+In the previous section, we created a new tibble every time we wanted to perform a modification to the data. Behold the pipe `%>%`, your path to RAM-saving, sleek code. The pipe `%>%` is used in a similar fashion to `+` in the `ggplot2()` package. 
+
+### (1 Points)
+
+Start by using `transmute()` to create a new variable "dep_hr" based on "dep_time" which represents departure time in hours since midnight. Recall the code for this is `dep_hr=dep_time%/%100+(dep_time%%100)/60`. In the same step, do this also for "sched_dep_time","arr_time", and "sched_arr_time" naming the new variables "sched_dep_hr", "arr_hr", and "sched_arr_hr", respectively. Save all these new variables to a new tibble called **f2a**. Use the function `names()` to ensure that **f2a** only contains the new variables and the function `head()` to view the top 5 rows.
+
+```{r, eval = FALSE}
+f2a=transmute(flights,
+          dep_hr=dep_time%/%100+(dep_time%%100)/60,
+          sched_dep_hr=sched_dep_time%/%100+(sched_dep_time%%100)/60,
+          arr_hr=arr_time%/%100+(arr_time%%100)/60,
+          sched_arr_hr=sched_arr_time%/%100+(sched_arr_time%%100)/60)
+names(f2a)
+head(f2a)
+```
+
+### (1 Points)
+
+Now we can create true delay variables, measured in hours, for both departure and arrival. Using `mutate()`, create a new variable "dep_delay_hr" which equals the difference between "dep_hr" and "sched_dep_hr". Analogously, perform the same operation for arrival. Call the new dataset **f2b**.
+
+```{r, eval = FALSE}
+f2b=mutate(f2a,
+           dep_delay_hr=dep_hr - sched_dep_hr,
+           arr_delay_hr=arr_hr - sched_arr_hr)
+```
+
+### (1 Points)
+Next, use `mutate()` again to create a new variable called "gain_hr" which is the difference between "arr_delay_hr" and "dep_delay_hr", measured in hours. Within the same step, use the function `percent_rank()` to create a new variable "percent_gain_hr" which represents the percentiles of the previously variable you created. Notice that you can develop variables based on recently transformed variables in the same iteration of `mutate()`, but be careful because order matters. Name the new dataset **f2c**.
+
+```{r, eval = FALSE}
+f2c=mutate(f2b,
+           gain_hr = arr_delay_hr - dep_delay_hr,
+           percent_gain_hr=percent_rank(gain_hr))
+```
+
+### (1 Points)
+Finally, sort the data using `arrange()` from largest to smallest based on the variable "percent_gain_hr". Name the sorted tibble **f2d**. To conclude, display the first five rows of this tibble.  
+```{r, eval = FALSE}
+f2d<-arrange(f2c, percent_gain_hr)
+head(f2d)
+```
+
+### (1 Points)
+
+Getting the original data from **flights** to **f2d** required multiple steps. If we know what we want to do with the raw data from `flights`, we can use the pipe `%>%` to obtain the same result without intermittently introducing new tibbles into our global environment. Modify the code below so that the tibble named **f2d.pipedream** is identical to `f2d`.  Display the first five rows.  
+
+
+```{r, eval = FALSE}
+f2d.pipedream = flights %>%
+  transmute(dep_hr=dep_time%/%100+(dep_time%%100)/60, sched_dep_hr=sched_dep_time%/%100+(sched_dep_time%%100)/60, arr_hr=arr_time%/%100+(arr_time%%100)/60, sched_arr_hr=sched_arr_time%/%100+(sched_arr_time%%100)/60) %>%
+  mutate(dep_delay_hr=dep_hr - sched_dep_hr, arr_delay_hr=arr_hr - sched_arr_hr) %>%
+  mutate(gain_hr = arr_delay_hr - dep_delay_hr, percent_gain_hr=percent_rank(gain_hr)) %>%
+  arrange(percent_gain_hr)
+
+head(f2d.pipedream, 5)
+
+```

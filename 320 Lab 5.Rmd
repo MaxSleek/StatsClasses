@@ -1,0 +1,143 @@
+---
+title: "Lab 5"
+author: "Max Sleek"
+date: "`r format(Sys.time(), '%B %d, %Y')`"
+output: 
+  html_document:
+    number_sections: true
+---
+
+This lab is meant to give you a bit more practice with writing user-defined functions.  More precisely, this will give you an appreciation for the amount of thought that goes into writing even our most basic functions such as `median`.  You will need to remove the `eval = FALSE` header in some code chunks to get them to execute once you have filled in the student input.  That is, I have given you a template of the overall design of the function.  Repace areas of all caps student input to get the code to run as desired.  
+
+# 
+
+Write a function called `Median` that takes vector input and outputs the median of said quantity.  **Hint: Your function should consider whether the vector is of even length or odd length as we have different ways of handling the median in each case.  I have included a template with some holes.  Your job is to fill in the holes.** (2pt)
+
+```{r, eval = TRUE}
+
+Median <- function(data){
+  sorted<-sort(data)
+  if (length(data) <= 2){
+    Median<-mean(data)
+  } else{
+    if (length(data) %% 2 == 0) {
+      middle_index<-length(data)/2
+      middle_two_indices<-c(middle_index, middle_index+1)
+      middle_two_numbers<-sorted[middle_two_indices]
+      Median<-mean(middle_two_numbers)
+    } else{
+      index <- ceiling(length(data)/2)
+      Median <- sorted[index]
+    }
+  }
+  return(Median)
+}
+
+```
+
+
+#
+
+Test your function on the below sample vectors.  You can use the built-in `median` function as a sanity check.  (1 pt)
+
+```{r}
+w <- c(100, 90, 115, 130, 103, 140, 90, 98)
+Median(w)
+median(w)
+x<-c(3,6,5,7,9)
+Median(x)
+median(x)
+y<-c(4, 8, 10, 13, 2, 1)
+Median(y)
+median(y)
+z<-c(10,12)
+Median(z)
+median(z)
+```
+
+#
+
+Now write a function called `skew` that takes in a vector and computes the difference between mean and median.  If said difference is non-zero it should report the corresponding direction of skewness (left or right), otherwise it should report "symmetric".  It should also return the difference itself. (2pt)
+
+```{r, eval = TRUE}
+
+skew <- function(data){
+  difference <- mean(data) - median(data)
+  if (difference > 0){
+    print("Right Skewed")
+  }else if (difference < 0 ){
+    print("Left Skewed")
+  }else{
+    print("Symmetric")
+  }
+  return(difference)
+}
+
+```
+
+#
+
+Test your function on the below sample vectors.  (1pt)
+
+```{r}
+
+a<-c(2,3,4,5,6)
+skew(a)
+b<-c(100, 2, 5, 3, 8)
+skew(b)
+c<-c(-9, 15, 11, 10)
+skew(c)
+
+```
+
+#
+
+Write a function that counts the missing values in a matrix.  You should also have an optional input `encode` that the user can specify if they believe NA's to be encoded as something other than NA.  I will show you how to account for this optional argument; your job is to fill in the logic of the for loops.  (3pts)
+
+
+```{r, eval = TRUE}
+
+missing <- function(matrix, encode = NULL){
+  counter<-0
+  if (!is.null(encode)){
+    for (i in 1:dim(matrix)[1]) {
+      for (j in 1:dim(matrix)[2]){
+        if (matrix[i,j] == encode || is.na(matrix[i,j])){
+          counter = counter + 1
+        }
+      }
+    } 
+  }else{
+    for (i in 1:dim(matrix)[1]) {
+      for (j in 1:dim(matrix)[2]){
+        if (is.na(matrix[i,j])){
+          counter = counter + 1
+        }
+      }
+    }
+  }
+  return(counter)
+}
+
+
+```
+
+#
+
+Test your function on the below two matrices. You should test both specifying the optional argument and not specifying. (1pt)
+
+```{r}
+
+c1<-c(1, NA, 2)
+c2<-c(3, 5, 6)
+c3<-c(-999, 4, 3)
+mat<-cbind(c1,c2,c3)
+missing(mat)
+missing(mat, encode = 3)
+
+c4<-c(9, -999, NA)
+mat2<-cbind(c1,c2,c3,c4)
+missing(mat2)
+missing(mat2, encode = 9)
+```
+

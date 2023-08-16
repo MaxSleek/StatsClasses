@@ -1,0 +1,129 @@
+---
+title: "Lab 8"
+author: "Max Sleek"
+date: "10/28/22"
+output: 
+  html_document:
+    number_sections: true
+---
+
+**Directions**: In this lab assignment, make sure you work in order of the code chunks, and knit after you complete each code chunk. *Take note: in certain code chunks this entails removing the eval = FALSE argument in the code header.*
+
+
+```{r, include = FALSE}
+library(dplyr)
+library(tidyverse)
+```
+# Mean Centered Simple Linear Regression
+
+Consider the simple linear regression model $y_i = \beta_0 + \beta_1x_i + \epsilon_i$ that we referenced in class.  This produces the familiar OLS estimates $\hat{\beta}_0, \hat{\beta}_1$.  However, we can rewrite the above by *mean centering*.  That is, $y_i = \beta_0 + \beta_1\bar{x} +\beta_1(x_i-\bar{x}) + \epsilon_i  = \tilde{\beta}_0 +\beta_1(x_i-\bar{x}) + \epsilon_i$.  The `lm` command uses the former, uncentered, version by default, but the purpose of this portion of the lab is to show you that *only* the estimate of the intercept has changed.  
+
+
+
+```{r}
+library(faraway)
+dat<-gala
+head(dat)
+
+```
+## 
+
+Use the `lm` command to fit a linear model without centering the data.  Print the coefficient to the screen using the summary command, and fill in the fitted model below (1pt).  
+
+
+
+```{r}
+Species<-gala$Species
+Elevation<-gala$Elevation
+#linear model command
+model <- lm(Species~Elevation, data = dat)
+summary(model)
+```
+
+
+
+$\hat{y}=11.33511 + 0.20079x$
+
+
+
+##
+
+Now create a new explanatory variable, `Elevation2`, by centering (subtracting the mean of `Elevation` from the variable itself) the original `Elevation`.  Perform a *centered* simple linear regression by regressing `Species` on `Elevation2`.  Again print the coefficients to the screen, and fill in the fitted model below (2pt).  
+
+```{r}
+#mean centered 
+dat <- mutate(dat, "Elevation2" = Elevation -  mean(Elevation), .after = Elevation)
+model2 <- lm(Species~Elevation2, data = dat)
+summary(model2)
+```
+
+
+
+$\hat{y}=85.23333 + 0.20079x$
+
+
+
+##
+
+If it wasn't already apparent via fitting the linear models, *only* the intercept should be different between the two models.  To prove this, use the `near` command to test if the slopes of the centered and uncentered model are within round-off error of each other (1pt).  
+
+```{r}
+#equality of slopes 
+near(summary(model)$coef[2], summary(model2)$coef[2])
+
+```
+
+##
+
+Now it should make sense that if the centered model is really just a way of rewriting the original linear regression model, they should induce identical predictions $\hat{y}_i$.  Prove that this is the case using the `predict` function on both models.  Note, that this function wants to be supplied with a model and the predictors it should input to said model.  In each case, ensure that you are using the corresponding predictors for the correct model.  Store these sets of predictions as `p1` and `p2` respectively and ensure they are equivalent (modulo round-off error) by using the `near` command once more (1pt).   
+
+```{r}
+#showing equality of predictions y_hat
+p1 <- predict(model)
+p2 <- predict(model2)
+near(p1,p2)
+
+```
+
+
+# Multiple Regression Model Selection 
+
+As can be seen in the head command at the outset of this lab, the `gala` dataset is quite obviously more expansive than we have, up to this point, considered.  There are far more explanatory variables than merely `Elevation`.  I chose this one to illustrate concepts surrounding mean centering within the context of *simple* linear regression.  We will now extend our purview to *multiple* regression which brings with it the necessity of model selection.  
+
+Recall from our lectures that there is a wide variety of selection procedures ranging from backwards selection to AIC.  For the purposes of this lab, we will restrict our focuses to the aforementioned two methods.    
+
+
+##
+
+Fit a full model using *all* available explanatory variables in the `gala` data set.  This model, entitled `lmod3`, should not be mean centered.  Finally use the `sumary` command intrinsic to the `faraway` package to output a more concise summary of the fitted model ^[Beware, the $R^2$ value reported is the mutliple $R^2$ not the Adjusted $R^2$.] (1pt).  
+
+```{r}
+lmod3 <- lm(Species~., data = gala)
+sumary(lmod3)
+
+```
+
+## 
+
+Now perform backwards selection via p-values until all included covariates are statistically significant at the $\alpha = 0.1$ level (2pt).  
+
+```{r}
+#model selection
+lmod4 <- update(lmod3, .~. -Scruz)
+sumary(lmod4)
+lmod5 <- update(lmod4, .~. -Adjacent)
+sumary(lmod5)
+lmod6 <- update(lmod5, .~. -Nearest)
+sumary(lmod6)
+lmod7 <- update(lmod6, .~. -Area)
+sumary(lmod7)
+lmod8 <- update(lmod7, .~. -Elevation)
+sumary(lmod8)
+```
+
+##
+
+You should have removed quite a few variables from full model.  Explain why you could not, in one step, remove all variables whose associated p-values for that model exceeded $p=0.1$ (2pt). 
+
+*Answer and Defense*
+You cannot remove all insignificant variables at once because the p-values change after each alteration. This can be seen with the Elevation variable. In lmod6, Elevation was significant, but once I removed the Area variable for lmod7, Elevation became insignificant. The inverse can also be true; insignificant predictors can become significant.

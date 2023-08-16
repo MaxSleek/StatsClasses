@@ -1,0 +1,89 @@
+---
+title: "320 HW 4"
+author: "Max Sleek"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+This homework is designed to give you practice with programming skills like loops, conditionals, and functions.  Per the usual, submit via an electronic document on Sakai. This must be submitted as a HTML file generated in RStudio.
+
+
+# Functions
+
+##
+Write a function that takes a vector input and subsets it along the even indices.  Your function name, while ultimately up to you, should give clear indication as to what the function accomplishes. 
+
+```{r}
+subseteven <- function(vec){
+    out <- vec[c(FALSE, TRUE)]
+    print(out)
+}
+```
+
+##
+Write a function that takes a vector input and outputs a vector including all values except the last entry.
+
+```{r}
+cutone <- function(vec){
+  out <- vec[1:length(vec)-1]
+  return(out)
+}
+```
+
+##
+Write a function that take a vector input and outputs the last element.
+
+```{r}
+returnlast <- function(vec){
+  out <- vec[length(vec)]
+  return(out)
+}
+```
+
+## 
+Test each of your functions on the following vector `a<-c(1,2,3,4,5,6)`.
+
+```{r}
+a<-c(1,2,3,4,5,6)
+#student input
+subseteven(a)
+cutone(a)
+returnlast(a)
+```
+
+# Loops
+
+##
+Write a loop that computes the mean of each column of `mtcars`.  *Hint: You can use the `seq_along()`  function to index your loop.*
+
+```{r}
+vec <- c("mpg", "cyl", "disp", "hp", "drat", "wt", "qsec", "vs", "am", "gear", "carb")
+for (i in vec){
+  out <- mean(mtcars[, i])
+  print(out)
+}
+```
+
+##
+Write a loop that reports the type of variable for each of the 19 included in `flights`.  Be sure to include the `nycflights13` package.  
+
+```{r}
+library(nycflights13)
+vec <- colnames(flights)
+for (i in vec){
+  out <- sapply(flights[, i], class)
+  print(out)
+}
+```
+
+##
+Write a loop that reports the number of unique values in each column of the `iris` dataset. 
+
+```{r}
+vec <- c("Sepal.Length", "Sepal.Width", "Petal.Length", "Petal.Width", "Species")
+for(i in vec){
+  n <- unique(iris[, i])
+  out <- length(n)
+  print(out)
+}
+```

@@ -1,0 +1,99 @@
+---
+title: "320 HW 7"
+author: "Max Sleek"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r, echo = FALSE}
+library(tidyverse)
+library(modelr)
+```
+
+# Linear Regression Analysis 
+
+Below I have plotted the `sim1` data set inherent to the `modelr` package.  This data set should be reasonably applicable to the linear regression framework.  
+```{r}
+set.seed(123)
+ggplot(sim1, aes(x, y)) + 
+  geom_point()
+sim1 <- sim1
+```
+
+##
+
+Fit the least squares regression model, and print its summary to the screen. Then write this fitted model in clear notation below.  
+
+```{r}
+model <- lm(y~x, data=sim1)
+summary(model)
+```
+
+*Model:* $y = 4.2208 + 2.0515*x$
+
+## 
+
+Plot the linear regression diagnostic plots, and comment on the appropriateness of the model assumptions.  
+
+```{r}
+plot(model)
+```
+
+
+*Interpretation:* By looking at the residuals vs. fitted plot, we can see this model somewhat satisfies the linearity assumption as the points are aligned along the line and there is no clear non-linear trend when looking at residuals. The same can be said about constant variance. As far as normality, I would say that the residuals obtained by using this model are normally distributed, thanks to the normal qq plot. 
+
+##
+
+Predict the $\hat{Y}_i$'s.  Do this first using the `predict` function and then with your own user-defined function entitled `make_prediction`.  Recall how we forecast points using a fitted linear model, $\hat{Y}_i = \hat{\beta}_0+\hat{\beta}_1x_i$.  Print both sets of predictions to the screen to ensure that they are consistent.  
+
+```{r}
+predictions <- predict(model, sim1)
+predictions
+
+B0 <- summary(model)$coef[1,1]
+B1 <- summary(model)$coef[2,1]
+
+make_prediction <- function(mod, data){
+  b0 <- summary(mod)$coef[1,1]
+  b1 <- summary(mod)$coef[2,1]
+  for (i in 1:length(data)){
+    print(b0 + b1*data[i])
+  }
+}
+
+make_prediction(model, sim1$x)
+```
+
+## 
+
+Write a function to compute the RMSE as we did in lecture.  Evaluate this function on the $\hat{Y}_i$ created in the above and `sim1` data. 
+
+```{r}
+RMSE <- function(data, prediction){
+  rmse <- sqrt(mean((data-prediction)^2, na.rm = TRUE)) %>%
+  print()
+}
+
+RMSE(sim1$y, predictions)
+rmse(model, sim1)
+```
+
+##
+Now the least squares regression line is not the only option.  There are other linear models that leverage different distance metrics in an attempt to make the model more robust to outliers.  Write a function entitled `measure_difference` that will compute the *mean absolute difference*, $MAD = \frac{1}{n} \sum_{i=1}^n{|Y_i-\hat{Y}_i|}$.  I have included a line that will use this function, in connection with the `optim` command to minimize the mean absolute difference for the `sim1` data ^[Recall that since the absolute value is non-differentiable, this optimization problem is not as straight-forward as taking partials and setting them equal to zero.  Hence the need for `optim`. ].
+Finally, use ggplot with an abline created from the `best` model above to plot the resulting fit. 
+
+```{r}
+#input student function
+predictions <- predict(model, sim1)
+measure_distance <- function(mod, data){
+  1/length(data$x) * sum(abs(data$y - predictions))
+}
+measure_distance(model, sim1)
+best = optim(c(0,0), measure_distance, data=sim1)
+
+#input student ggplot
+ggplot() +
+  geom_point(data = sim1, aes(x = x, y = y)) + 
+  geom_abline(intercept = summary(model)$coef[1,1], slope = as.numeric(best[2]))
+
+```

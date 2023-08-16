@@ -1,0 +1,156 @@
+---
+itle: "320 lab 6"
+author: "Max Sleek"
+date: "`r format(Sys.time(), '%B %d, %Y')`"
+output: 
+  html_document:
+    number_sections: true
+---
+
+This lab is aimed at detailing the intricacies of tidy data and joins.  As with anything we do in this course, it will continue to build on previous concepts, as such programmatic techniques may be leveraged in this lab as well.  We will take each in turn, begging first with the `pivot` functions that are so characteristic of tidying up data.  
+
+As per usual, you will have some code chunks with templates that you will have to complete.  Remove the `eval = FALSE` header to get the code chunk to run to completion.  
+
+# Tidy Data
+
+I am first creating an artificial data set that chronical the number and type of vacation destinations in a given year from 2006 to 2020.  As such, there are 45 total rows, each indicating a year, destination, and number.  
+
+```{r}
+library(tidyverse)
+set.seed(123)
+vaca <- data.frame(year = rep(seq(2006, 2020), each = 3), location = rep(c("beach", "moutain", "lake"), 15), N = round(runif(45, 10,100))) 
+head(vaca)
+
+```
+
+## 
+Currently the data is in *long* format, but imagine we would like it be wide instead.  That is, imagine what would be a more compact form of this data set where each type of destination was a column, each singular year was a row and the intersection contained the number corresponding to each.  Create such a data set and call it `vaca.wide`.  Print the entirety of the data set, and comment on why it is not necessary to just print the head of this particular data set. (1pt)  
+
+```{r}
+#Use a pivot command 
+vaca.wide <- vaca %>% pivot_wider(names_from = location, values_from = N)
+print(vaca.wide)
+
+# It is not necessary to just print the head of this data set because there is only 15 values. 
+```
+
+## 
+
+One reason that a wider data frame may be advisable in the above scenario is that it is conducive to some of the low level EDA we discussed in the previous lab.  That is, instead of having to loop over destination types, or even just specify them within a more complicated command, we can now just find column means to summarise the number of people attending each destination spot.  Let's try: find the destination with the largest average number of visitors.  Also find the standard deviation of this destination and comment on how this variability may affect your conclusion regarding the "most popular destination".  (1pt)
+
+```{r, eval = TRUE}
+vaca.wider<-as.matrix(vaca.wide)
+colMeans(vaca.wider)
+sd(vaca.wider[, 2])
+
+# This very high standard deviation means we can expect a giant variance when working with this data, and it is either untrustworthy or too small to reasonably determine the most popular destination.
+```
+
+## 
+
+Now, find the year with the most cumulative visitors.  How many visitors did this year see? (1 pt)
+
+```{r}
+vaca.wider <- vaca.wide %>%
+  mutate("Total" = beach + moutain + lake)
+vaca.wider$Total[which.max(vaca.wider$Total)]
+
+```
+
+##
+
+Now even though some of the arithmetic EDA is expedited by making the data frame wider, most of ggplot will prefer the data to be oriented in a long fashion.  
+
+To illustrate this, create a new data set called `vaca.abbridge.long` contains only the years 2011-2020 in long format.  From there, create a line plot of the data colored by destination ^[This would take you an additional three lines of code to accomplish if you were still in wide formatting]. Interpret this line plot in the context of the "most popular vacation destination". (2 pt)
+
+```{r, eval = TRUE}
+
+vaca.abbridge.long <- vaca.wider[6:15,] %>%
+  pivot_longer(2:4, names_to = "location", values_to = "N")
+
+vaca.abbridge.long %>% 
+  ggplot(aes(x = year, y = N, color = location)) +
+  geom_line()
+
+# This line plot represents that it's pretty much impossible to determine a constant most popular vacation destination. The values fluctuate along with the most popular one.
+```
+
+## 
+
+Based on the plot above *guess* which destination has the most variability in its popularity.  Check this intution using the `sd` command.  (1pt) 
+
+```{r}
+# I guess that the lake has the most variability.
+sd(vaca.wider$lake)
+sd(vaca.wider$beach)
+sd(vaca.wider$moutain)
+# I was incorrect, the mountains actually have the most variability.
+```
+
+# Joins
+
+We will again begin with an artificial data set. 
+
+```{r}
+
+set.seed(123)
+
+employee_id <- 1:10
+employee_name <- c("Andrew", "Ellen", "Ethan", "Joe", "Johann",
+                   "Jacob", "Jennica", "Charlotte", "Jacqueline", "Ivy")
+employee_salary <- round(rnorm(10, mean = 1500, sd = 200))
+employee_age <- round(rnorm(10, mean = 50, sd = 8))
+employee_position <- c("CTO", "CFO", "Administrative", rep("Technician", 7))
+
+
+df_1 <- data.frame(id = employee_id[1:8], name = employee_name[1:8],
+                   month_salary = employee_salary[1:8])
+df_2 <- data.frame(id = employee_id[-5], name = employee_name[-5],
+                   age = employee_age[-5], position = employee_position[-5])
+
+df_1
+df_2
+
+```
+
+As you can see, the each data frame has an employee designated by name and `id`.  The first dataframe, then, has monthly salary, while the second contains age and position.  
+
+##
+
+Create a new dataframe, called `df_3`, that is comprised of the *common elements* of `df_1` and `df_2`.  *Hint* notice that each name is unique, so it can identify observations as easily as the variable `id`. (1 pt)
+
+```{r}
+# use a correct join command with carefully chosen key
+df_3 <- inner_join(df_1, df_2)
+```
+
+
+##
+
+We now would like to create a new dataframe, `df_4`, that includes all elements from both dataframe, irrespective of whether or not they are shared.  Note, this may induce some `NA's` which we will have to attend to in future work ^[An alternative, albeit less efficient and robust, method of achieving each of the above tasks is the `merge()` command.  This has an additional argument that will distinguish between the types of join rather than using entirely different functions.].  (1 pt)
+
+```{r}
+#another join command
+df_4 <- full_join(df_1, df_2)
+```
+
+##
+
+We now have missing monthly salary for both Ivy and Jacqueline.  Recall that there are multiple ways to handle this, but because we do have *some* information on their status, we can leverage this to interpolate their possible salaries.  That is, for each of Jacqueline and Ivy, produce monthly salary estimates via linear interpolation of the three technicians closest in age to the given person.  Finally, place these projected values into the appropriate place in the dataframe below.  *Hint Use the `approxfun()` command using salary and age as your two input vectors. Recall that this approxfun() will return a function performing interpolation on the given data points.  We can then submit the known ages for the two women to this function and it will return the interpolated salary for that age.*  (2 pt)
+
+
+```{r, eval = TRUE}
+
+#initialize salary and age input vectors for both Jacqueline and Ivy based on the available information of other workers
+
+my_approx_fun<-approxfun(employee_age, employee_salary)
+Jacq_salary<-my_approx_fun(56)
+
+my_approx_fun<-approxfun(employee_age, employee_salary)
+Ivy_salary<-my_approx_fun(46)
+
+df_4[9,3]<-Jacq_salary
+df_4[10,3]<-Ivy_salary
+
+df_4
+```
