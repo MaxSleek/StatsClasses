@@ -1,0 +1,140 @@
+---
+title: 'STOR 455 Homework #3'
+subtitle: 40 points - Due 9/28 at 11:59pm
+output:
+  pdf_document: default
+  html_document:
+    df_print: paged
+---
+
+__Directions:__ You will be assigned to a group of three to four students for this assignment. Parts 1, 2, & 5 should be submitted individually to Gradescope by each student in your group. Parts 3 & 4 should be submitted as a group to Gradescope. There are separate places to submit the individual and group portions of the assignment. 
+    
+__Situation:__ Can we predict the selling price of a house in Ames, Iowa based on recorded features of the house? That is your task for this assignment. Each group will have a dataset with information on forty potential predictors and the selling price (in $1,000’s) for a sample of homes. The data set for your group is in AmesTrain??.csv (where ?? corresponds to your group number) and can be found in the AmesTrain zipped file under class 14 in Sakai. A separate file identifies the variables in the Ames Housing data and explains some of the coding.
+
+### Part 1. Build an initial “basic” model ###    
+Your basic model can use any of the quantitative variables in the dataset but should NOT use the categorical variables, transformations, or interactions (we’ll discuss these in class soon) – those will come in a later assignment. Use your data to select a set of predictors to include in your model. Keep track of the process you use and decisions you make to arrive at an initial set of predictors. Your report should include a summary of this process. You don’t need to show all the output for every model you consider, but you should give a clear description of the path you took and the criteria that you used to compare competing models. Also, use at least two model selection methods to find a model (e.g. don’t just check all subsets, although it will work well here, this method will fail in future assignments).  
+    
+In addition to the commentary on model selection, include the following information for this initial choice of a model:
+
+* the summary() output for your model
+* comments on which (if any) of the predictors in the model are not significant at a 5% level
+* comments on what the VIF values tell you about the individual predictors in your model
+    
+Do not consider the Order variable (that is just an observation number) as one of your predictors. Avoid predictors that are exactly related. For example, if GroundSF=FirstSF+SecondSF you will likely get trouble if you try to put all three in the same model. 
+
+```{r}
+library(tidyverse)
+library(readr)
+library(car)
+library(leaps)
+library(corrplot)
+AmesTrain13 <- read_csv("AmesTrain13.csv")
+
+# Method 1: All numeric variables
+NumAmesTrain13 <- AmesTrain13 %>% select(where(is.numeric))
+allmodel <- lm(Price~., data = NumAmesTrain13)
+vif(allmodel)
+```
+
+*There are countless variable with extreme vifs. Using all of the numeric variables is not an option.*
+
+```{r}
+# Method 2: Subset for overlapping variables and variables that make sense
+trainsubs = regsubsets(Price~LotArea + LotFrontage + FullBath + HalfBath + YearRemodel + BasementSF + GroundSF + BasementFBath + BasementHBath + TotalRooms + Fireplaces + GarageSF + WoodDeckSF, data = NumAmesTrain13)
+model1 = lm(Price~LotArea + LotFrontage + FullBath + HalfBath + YearRemodel + BasementSF + GroundSF + BasementFBath + BasementHBath + TotalRooms + Fireplaces + GarageSF + WoodDeckSF, data = NumAmesTrain13)
+
+summary(trainsubs)
+```
+
+*The model including LotArea, YearRemodel, BasementSF, GroundSF, BasementFBath, TotalRooms, Fireplaces, and GarageSF seems to be the best in terms of Mallow's Cp. *
+
+```{r}
+# Method 3: Forward Selection
+mse = (summary(model1)$sigma)^2
+blank = lm(Price~1, NumAmesTrain13)
+step(blank, scope=list(upper=model1), scale = mse, direction = "forward", trace = TRUE)
+```
+
+*Using the same variables we got from analyzing the subsets, we can do forward selection to select the best model. The best model according to forward selection includes HalfBath, LotFrontage and FullBath. This is strange considering it's only three predictors, two of which are number of bathrooms. However, these are usually the most prominent details of a house.*
+
+```{r}
+# Model information
+model2 <- lm(Price~LotArea+YearRemodel+BasementSF+GroundSF+BasementFBath+TotalRooms+Fireplaces+GarageSF, data = NumAmesTrain13)
+model3 <- lm(Price~HalfBath+LotFrontage+FullBath, data = NumAmesTrain13)
+
+summary(model2)
+summary(model3)
+vif(model2)
+vif(model3)
+```
+
+*Using a null hypothesis of a regression of 0, and an alternative hypothesis of a regression that is not 0, we can conduct a t-test through the summary function. Since the p-values for all predictors in both models are below .05, we can say with 95% confidence that the regression coefficient of both models is not 0. In terms of VIF, there are no values over 5, which means these models are likely acceptable. We should keep in mind that GroundSF and TotalRooms are above 3, meaning they may be cause for concern. Generally, though, these 2 models look good enough to proceed. I will choose model3 for part 2.*
+       
+### Part 2. Residual analysis for your basic model ###    
+Do a residual analysis for the model you chose in Part 1. Include any plots relevant to checking model conditions - with interpretations. Also check whether any of the data cases are unusual with respect to studentized residuals. Since there are a lot of data points don’t worry about the “mild” cases for studentized residuals, but indicate what specific criteria you are using to identify “unusual” points. 
+   
+Adjust your model (either the predictors included or data values that are used to fit it, but not yet using transformations) on the basis of your residual analysis – but don’t worry too much about trying to get all conditions “perfect”.  For example, don’t automatically just delete any points that might give large residuals! If you do refit something, be sure to document what changed and include the new summary() output.
+
+```{r}
+plot(model3)
+```
+
+*Linearity: By looking at the residuals vs. fitted plot, we can see that a linear model is a decent fit for the data, as it somewhat follows the linear trend.*
+*Zero Mean: The residuals vs. fitted plot appears to be somewhat well centered around 0, but it should be kept in mind that there is a very wide spread for the residuals.*
+*Constant Variance: It appears that a majority of the data is clumped together around the zero line, so we can reasonably assume the higher/lower values won't have too much of an effect.*
+*Independence: Since we didn't collect this data set, it would be tough to detect errors of independence, but the data set looks random and there are no obvious malicious trends.*
+*Normality: Based upon the normal qq plot, there is a heavy right skew in the standardized residuals.*
+*Overall, model2 may be a better choice than model3, as can be seen when plotting model2's residuals vs fitted.*
+
+```{r}
+plot(model2)
+```
+    
+*I'm not sure that I can alter this data set without removing a significant amount of values. All of the studentized residuals are within reasonable cook's distance, and there is a clear right skew in the normal qq plot that is the result of many high residuals.*
+
+### Part 3: Find a “fancier model”: ###    
+    
+In addition to the quantitative predictors from Part 1, you may now consider models with:     
+
+* Transformations of predictors. You can include functions of quantitative predictors. Probably best to use the I() notation so you don’t need to create new columns when you run the predictions for the test data. For example:      lm(Price~LotArea+I(LotArea^2)+sqrt(LotArea)+log(LotArea),... 
+* Transformations of the response. You might address curvature or skewness in residual plots by transforming the response prices with a function like log(Price ), sqrt(Price), Price^2, etc..  These should generally not need the I( ) notation to make these adjustments.
+* Combinations of variables. This might include for example creating a new variable which would count the total bathrooms in the house in a single predictor.  
+
+Do not haphazardly use transformation on predictors, but examine the relationships between the predictors and response to determine when a transformation would be warranted. Again use multiple model selection methods to determine a best model, but now with transformed variables are possible predictors in the model.
+
+__Discuss the process that you used to transform the predictors and/or response so that you could use this process in the future on a new data set.__
+
+```{r}
+AmesTrain13$TotalSF = AmesTrain13$GroundSF + AmesTrain13$BasementSF + AmesTrain13$GarageSF
+newdata = AmesTrain13[-c(180,242,495,587),]
+newdata$TotalSF = newdata$GroundSF + newdata$BasementSF + newdata$GarageSF
+class(newdata$TotalSF)
+plot(Price~LotArea+YearRemodel+TotalSF+BasementFBath+TotalRooms+Fireplaces, AmesTrain13)
+trans_mod = lm(Price~sqrt(LotArea)+YearRemodel+I(TotalSF^2)+BasementFBath+TotalRooms+Fireplaces, newdata)
+plot(Price~sqrt(LotArea), AmesTrain13)
+summary(trans_mod)
+```
+
+```{r}
+plot(trans_mod)
+model4 = lm(Price~LotArea+YearRemodel+BasementSF+GroundSF+BasementFBath+TotalRooms+Fireplaces+GarageSF, newdata)
+plot(model4)
+```
+
+### Part 4. Residual analysis for your fancier model ###    
+
+Repeat the residual analysis from Part 2 on your new model constructed in Part 3. A residual analysis was likely (hopefully) part of your process for determining your "fancier" model. That does not need to be repeated here as long as you clearly discuss your process.
+
+### Part 5. Final model ###     
+
+Suppose that you are interested in a house in Ames that has the characteristics listed below. Construct a 95% confidence interval for the mean price of such houses.
+
+A 2 story 11 room home, built in 1987 and remodeled in 1999 on a 21540 sq. ft. lot with 328 feet of road frontage. Overall quality is good (7) and condition is average (5). The quality and condition of the exterior are both good (Gd) and it has a poured concrete foundation. There is an 757 sq. foot basement that has excellent height, but is completely unfinished and has no bath facilities. Heating comes from a gas air furnace that is in excellent condition and there is central air conditioning. The house has 2432 sq. ft. of living space above ground, 1485 on the first floor and 947 on the second, with 4 bedrooms, 2 full and one half baths, and 1 fireplace. The 2 car, built-in garage has 588 sq. ft. of space and is average (TA) for both quality and construction. The only porches or decks is a 205 sq. ft. open porch in the front. 
+
+```{r}
+newx = data.frame(LotArea = 21450, YearRemodel = 1999, TotalSF = 3982, BasementFBath = 0, TotalRooms = 11, Fireplaces = 1)
+
+predict.lm(trans_mod, newx, interval="confidence", level = 0.95)
+```
+
+

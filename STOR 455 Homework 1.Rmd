@@ -1,0 +1,167 @@
+---
+title: '455 Homework 1'
+author: 'Max Sleek'
+output:
+  pdf_document: default
+  html_document:
+    df_print: paged
+---
+
+**Directions:** This first assignment is meant to be an introduction to working with R in RStudio. You may (and should) collaborate with other students. If you do so, you must identify them on the work that you turn in. You should complete the assignment in an R Notebook, including all calculations, plots, and explanations. Make use of the white space outside of the R chunks for your explanations rather than using comments inside of the chunks. For your submission, you should knit the notebook to PDF and submit the file to Gradescope.
+
+**Eastern Box Turtles:** The Box Turtle Connection is a long-term study anticipating at least 100 years of data collection on box turtles. Their purpose is to learn more about the status and trends in box turtle populations, identify threats, and develop strategies for long-term conservation of the species. Eastern Box Turtle populations are in decline in North Carolina and while they are recognized as a threatened species by the International Union for Conservation of Nature, the turtles have no protection in North Carolina. There are currently more than 30 active research study sites across the state of North Carolina. Turtles are weighed, measured, photographed, and permanently marked. These data, along with voucher photos (photos that document sightings), are then entered into centralized database managed by the NC Wildlife Resources Commission. The *Turtles* dataset (found at the link below) contains data collected at The Piedmont Wildlife Center in Durham.
+
+<https://raw.githubusercontent.com/JA-McLean/STOR455/master/data/Turtles.csv>
+
+1)  For this assignment let's look at only those turtles in the dataset that have a mass less than 300 grams. Construct a new dataframe named *Small_Turtles* that contains only those turtles with a *Mass* below 300 grams. There is also one adult male turtle in the data set that may have been mistakenly entered as having a weight of 6 grams. Remove this turtle from the dataset as well. You should use this *Small_Turtles* dataframe for the remainder of the assignment.
+
+```{r}
+Turtles <- read.csv("https://raw.githubusercontent.com/JA-McLean/STOR455/master/data/Turtles.csv")
+Small_Turtles <- subset(Turtles, subset = Mass < 300)
+Small_Turtles <- subset(Small_Turtles, Mass!= 6)
+head(Small_Turtles)
+```
+
+2)  The *Annuli* rings on a turtle represent growth on the scutes of the carapace and plastron. In the past, it was thought that annuli corresponded to age, but findings suggest that this is not the case. However, the annuli are still counted since it may yield important life history information. Construct a least squares regression line that predicts turtles' *Annuli* by their *Mass*. Include a summary of this model.
+
+```{r}
+AnnuliModel <- lm(Annuli~Mass, data = Small_Turtles)
+summary(AnnuliModel)
+```
+
+3)  Produce a scatterplot of this relationship and include the least squares regression line on the plot.
+
+```{r}
+plot(Annuli~Mass, data = Small_Turtles)
+abline(AnnuliModel)
+```
+
+4)  For a turtle in the *Small_Turtles* dataset with a mass of 100 grams, what does your model predict for this turtle's number of *Annuli*? For turtles in the data with a mass of 100 grams, what are the residuals for these cases?
+
+```{r}
+mass_prediction <- AnnuliModel$coefficients[1] + AnnuliModel$coefficients[2] * 100
+mass_prediction
+
+AnnuliModel$residuals[which(Small_Turtles$Mass == 100)]
+```
+
+5)  Which turtle (by row number in the dataset) has the largest positive residual? What is the value of that residual?
+
+```{r}
+which.max(AnnuliModel$residuals)
+AnnuliModel$residuals[66]
+# Or use sort function
+sort(AnnuliModel$residuals, decreasing = TRUE)
+```
+Turtle number 185, with a residual of 19.8224697
+
+6)  Which turtle (by row number in the dataset) has the most negative residual? What is the value of that residual?
+
+```{r}
+which.min(AnnuliModel$residuals)
+AnnuliModel$residuals[38]
+# Or use sort function
+sort(AnnuliModel$residuals)
+```
+Turtle number 103, with a residual of -10.9402080
+
+7)  Comment on how each of the conditions for a simple linear model are (or are not) met in this model. Include at least two plots (in addition to the plot in question 3) - with commentary on what each plot tells you specifically about the appropriateness of conditions.
+
+  1. Linearity: Using the plot from question 3, we can determine that a linear pattern is an ok (not great) fit for a model since the data somewhat follows the regression line. We can further explore this by looking at a scatterplot of the residuals vs. the fitted values. Once again, the data is an ok (but not great) fit for a linear model because it generally follows the (0,0) line across the plot in a linear-like pattern.
+```{r}
+plot(Annuli~Mass, data = Small_Turtles)
+abline(AnnuliModel)
+
+plot(AnnuliModel$residuals~AnnuliModel$fitted.values)
+abline(0,0)
+```
+
+  2. Zero Mean: Using the same plot from question 3 (the regression line), we can determine if the variance is constant throughout the data set. In this plot, our data can be considered linear if the variance between the residuals and fitted values is constant. In this case, the variance seems to get larger as the fitted values increase, something we should definitely keep in mind. We don't really have a concrete way to determine how MUCH variance in the residuals is bad, but plotting the residuals with a box plot can help determine its normality. The variance looks mostly normal aside from a few outliers to the right, and is centered around 0. Still, I'll lean on the safe side and say the zero mean condition is not met.
+```{r}
+plot(Annuli~Mass, data = Small_Turtles)
+abline(AnnuliModel)
+
+boxplot(AnnuliModel$residuals)
+```
+
+  3. Constant Variance: Similar to zero mean, constant variance deals with the variance of Y being the same at each X. By taking a look at the regression line, we can still observe that the variance seems to get larger as the fitted values increase, meaning we can't determine that there is constant variance.
+```{r}
+plot(Annuli~Mass, data = Small_Turtles)
+abline(AnnuliModel)
+```
+
+  4. Independence: Since we did not collect this data set, it would be difficult for us to determine any relationships between errors, so I'll pass by the independence condition in this case.
+  
+  5. Normality: Normality deals with the variance being normally distributed. To analyze this, we can make a normal quantile plot, which shows our residuals vs. a line representing the residuals if they were perfectly normal. From this plot, we can determine that our residuals are nearly normally distributed, but have a pretty large right skew and a smaller left skew. This is pretty close, but I will lean to the side of assuming the residuals are NOT normally distributed, violating our constant variance condition.
+```{r}
+qqnorm(AnnuliModel$residuals)
+qqline(AnnuliModel$residuals)
+```
+  
+8)  Experiment with at least two transformations to determine if models constructed with these transformations appear to do a better job of satisfying each of the simple linear model conditions. Include the summary outputs for fitting these models and scatterplots of the transformed variable(s) with the least square lines. Note that there may not be a good transformation for this data based on what we have so far done in class.
+```{r}
+# Trying log transformation
+AnnuliModel2 <- lm(log(Annuli)~log(Mass), data = Small_Turtles)
+summary(AnnuliModel2)
+b0 = AnnuliModel2$coefficients[1]
+b1 = AnnuliModel2$coefficients[2]
+plot(Annuli~Mass, data = Small_Turtles)
+curve(exp(b0)*x^b1, add = TRUE)
+
+# Trying sqrt transformation
+AnnuliModel3 <- lm(sqrt(Annuli)~sqrt(Mass), data = Small_Turtles)
+summary(AnnuliModel3)
+b0 = AnnuliModel3$coefficients[1]
+b1 = AnnuliModel3$coefficients[2]
+plot(Annuli~Mass, data = Small_Turtles)
+curve(sqrt(b0 + x*b1), add = TRUE)
+
+# Trying 1/Y transformation
+AnnuliModel4 <- lm(1/(Annuli)~1/(Mass), data = Small_Turtles)
+summary(AnnuliModel4)
+b0 = AnnuliModel3$coefficients[1]
+b1 = AnnuliModel3$coefficients[2]
+plot(Annuli~Mass, data = Small_Turtles)
+curve(1/(b0+x*b1), add = TRUE)
+```
+
+It appears that the log transformation fit the data best out of the transformations I tried. It also appears that the log transformation fits the data better than a standard linear model.
+
+9)  For your model with the best transformation from question 8 (It still may not be an ideal model), plot the raw data (not transformed) with the model (likely a curve) on the same axes.
+```{r}
+b0 = AnnuliModel2$coefficients[1]
+b1 = AnnuliModel2$coefficients[2]
+plot(Annuli~Mass, data = Small_Turtles)
+curve(exp(b0)*x^b1, add = TRUE)
+```
+
+10) For a turtle in the *Small_Turtles* dataset with a mass of 100 grams, what does the model with the best transformation from question 8 predict for this turtle's number of *Annuli*? In terms of *Annuli*, how different is this prediction from the observed values in the data for turtles with a mass of 100 grams?
+```{r}
+mass_prediction_2 <- exp(b0) * 100^(b1)
+mass_prediction_2
+
+mass_prediction_2 - mass_prediction
+```
+
+11) For your model using the best transformation from question 8, could the relationship between *Mass* and *Annuli* be different depending on the *Sex* of the turtle? Construct two new dataframes (beginning with the *Small_Turtles* dataframe), one with only male turtles, and one with only female turtles. Using your best transformation from question 8, construct two new models to predict *Annuli* with *Mass* for male and female turtles separately. Plot the raw data for *Anulli* and *Mass* for all turtles as well as each of these new models on the same plot. You should use different colors for each model (which are likely curves). What does this plot tell you about the relationship between *Mass* and *Annuli* depending on the *Sex* of the turtles?
+```{r}
+Small_Male_Turtles <- subset.data.frame(Small_Turtles, Sex == "Male")
+Small_Female_Turtles <- subset.data.frame(Small_Turtles, Sex == "Female")
+
+AnnuliModel5 <- lm(log(Annuli)~log(Mass), data = Small_Male_Turtles)
+summary(AnnuliModel5)
+b2 = AnnuliModel5$coefficients[1]
+b3 = AnnuliModel5$coefficients[2]
+
+AnnuliModel6 <- lm(log(Annuli)~log(Mass), data = Small_Female_Turtles)
+summary(AnnuliModel6)
+b4 = AnnuliModel6$coefficients[1]
+b5 = AnnuliModel6$coefficients[2]
+
+plot(Annuli~Mass, data = Small_Turtles)
+curve(exp(b0)*x^b1, add = TRUE)
+curve(exp(b2)*x^b3, add = TRUE, col = "blue")
+curve(exp(b4)*x^b5, add = TRUE, col = "red")
+```
+
+Based on the plot, the relationship between mass and annuli based on the sex of the turtles is very similar. Females tend to have a slightly lower Annuli for higher levels of Mass, but this difference is very subtle.

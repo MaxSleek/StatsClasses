@@ -1,0 +1,176 @@
+---
+title: 'STOR 455 Homework #4'
+subtitle: 40 points - Due Monday 10/10 at 11:59pm
+output:
+  pdf_document: default
+---
+
+__Situation:__ Suppose that you are interested in purchasing a used vehicle. How much should you expect to pay?  Obviously the price will depend on the type of vehicle that you get (the model) and how much it's been used. For this assignment you will investigate how the price might depend on the vehicle's year, state, and odometer reading.  
+ 
+__Data Source:__ To get a sample of vehicles, begin with the _vehiclesSE_ csv file. The data was acquired by scraping Craigslist for vehicles for sale across the southeastern United States. For this assignment you will use the same vehicle _model_ from assignment #2. Construct a subset of the _vehiclesSE_ data for this _model_ of vehicle. If your subset has cars with seemingly incorrect data (such as a price of $1, odometer reading of one million miles, year of 1900) you should remove those values from the data.
+
+__Directions:__ The code below should walk you through the process of selecting data from a particular model vehicle of your choice. The following R chunk begin with {r, eval=FALSE}. eval=FALSE makes this chunk not run when I knit the file. Before you knit this chunk, you should revert it to {r}.
+
+```{r}
+library(readr)
+library(tidyverse)
+library(dplyr)
+vehiclesSE <- read_csv("vehiclesSE.csv", show_col_types = FALSE)
+
+# Delete the ** below and enter your chosen model
+ModelOfMyChoice = "cr-v"
+
+# Takes a subset of your model vehicles
+MyVehicles = subset(vehiclesSE, model==ModelOfMyChoice)
+```
+
+#### MODEL #5: Now Include a Categorical predictor ####    
+
+1. Construct a new variable called _age_ in the _MyVehicles_ dataframe. Since the vehicles were posted to Craigslist in 2021, define the _age_ of all vehicles to be their year subtracted from 2021. 
+
+```{r}
+MyVehicles <- mutate(MyVehicles, "age" = 2021 - year, .before = "manufacturer")
+```
+
+2. Fit a multiple regression model using _year_, _odometer_, and _state_ to predict the _price_ of the vehicle. 
+
+```{r}
+model1 <- lm(price ~ year + odometer + state, data = MyVehicles)
+```
+
+3. Perform a hypothesis test to determine the importance of terms involving _state_ in the model constructed in question 2. List your hypotheses, p-value, and conclusion.
+
+Null Hypothesis: Terms involving state have no importance in predicting the price of the car.
+Alternate Hypothesis: Terms involving state have nonzero importance in predicting the price of the car.
+P-value: 2.2e-16
+Conclusion: We can conclude with 99% confidence that terms involving state do NOT have zero importance in predicting price; in other words, we can reject the null.
+```{r}
+model <- lm(price ~ state, data = MyVehicles)
+anova(model1, model)
+```
+
+4. Fit a multiple regression model using _year_, _odometer_, _state_, and the interactions between _year_ and _state_, and _odometer_ and _state_ to predict the _price_ of  the vehicle.
+
+```{r}
+model2 <- lm(price ~ year + odometer + state + year*factor(state) + odometer*factor(state), data = MyVehicles)
+```
+
+5. Perform a hypothesis test to determine the importance of the terms involving _state_ in the model constructed in question 4. List your hypotheses, p-value, and conclusion.
+
+Null Hypothesis: Terms involving state have no importance in predicting the price of the car.
+Alternate Hypothesis: Terms involving state have nonzero importance in predicting the price of the car.
+P-value(s): 4.346e-12, 0.0002803, 0.0027599 respectively
+Conclusion: Since each of the p-values is near 0, we can conclude with 99% confidence that all terms involving state do NOT have zero importance in predicting price; in other words, we can reject the null.
+```{r}
+anova(model2)
+```
+
+
+#### MODEL #6: Polynomial models ####
+    
+One of the drawbacks of the linear model in assignment #2 was the “free vehicle” phenomenon where the predicted price is eventually negative as the line decreases for older vehicles. Let’s see if adding one or more polynomial terms might help with this. 
+
+6. Fit a quadratic model using _age_ to predict _price_ and examine the residuals. Construct a scatterplot of the data with the quadratic fit included. You should discuss each of the conditions for the linear model.
+
+Linearity: By looking at the residuals vs. fitted plot, we can tell that this data is not a great fit for linearity. The residuals are not aligned along the 0,0 line very well and their distance from the line changes greatly throughout the plot.
+Zero Mean: Again by looking at the residuals vs. fitted plot, we can tell the difference of the residuals is somewhat centered around 0, but is slightly above. This is indicated by the red line.
+Constant Variance: The distance from the residuals to the fitted line expands as age increases, meaning we do not have constant variance. 
+Normality: By looking at the normal qq plot, we can determine the normality of the variance. When the theoretical quantiles are above -1, they are relatively normal, but when they are below -1, there is a severe left skew. The values are very far below the normality line.
+
+```{r}
+model3 <- lm(price ~ age + I(age^2), data = MyVehicles)
+
+plot(model3)
+
+plot(price~age, main="Quadratic Model", data=MyVehicles)
+B0_model3 = summary(model3)$coef[1,1]
+B1_model3 = summary(model3)$coef[2,1]
+B2_model3 = summary(model3)$coef[3,1]
+curve(B0_model3 + B1_model3*x 
+	+ B2_model3*x^2, add=TRUE)
+```
+
+7. Perform a hypothesis test to determine if any of the coefficients in this model have nonzero coefficients. List your hypotheses, p-value, and conclusion.
+
+Null Hypothesis: Coefficients of age related terms in this model are zero. 
+Alternate Hypothesis: Coefficients of age related terms in this model are nonzero. 
+P-value(s): 2.2e-16, 6.685e-05
+Conclusion: Since each of the p-values is near 0, we can reject the null hypothesis of coefficients of age related terms in this model being zero with 99% confidence.
+
+```{r}
+anova(model3)
+```
+
+8. You are looking at a vehicle that was 4 years old (in 2021) of your model and want to find an interval that is likely to contain its _price_ using your quadratic model. Construct an interval with 95% confidence to predict the _price_ of this vehicle and include an interpretive sentence in context. 
+
+According to my model, I can say with 95% confidence that the true price of a 4 year old car is between $17,217.05 and 18,316.69.
+```{r}
+newx <- data.frame("age" = 4)
+predict.lm(model3, newx, interval="confidence")
+```
+
+9. Does the quadratic model allow for some _age_ where a vehicle has a zero or negative predicted price? Justify your answer using a calculation or graph.
+
+```{r}
+plot.window(xlim = c(0 , 1000000), ylim = c(0, 100))
+plot.new()
+curve(B0_model3 + B1_model3*x 
+	+ B2_model3*x^2, add=TRUE)
+
+```
+
+10. Would the fit improve significantly if you also included a cubic term? Does expanding your polynomial model to use a quartic term make significant improvements? Justify your answer.
+
+The fit does not improve for neither cubic terms nor quartic terms. Both the residuals vs. fitted plots and the normal QQ plots look nearly exactly the same as the quadratic model, which was not very good in and of itself. 
+
+```{r}
+model4 <- lm(price ~ age + I(age^2) + I(age^3), data = MyVehicles)
+plot(model4)
+model5 <- lm(price ~ age + I(age^2) + I(age^3) + I(age^4), data = MyVehicles)
+plot(model5)
+```
+
+
+#### MODEL #7: Complete second order model ####    
+
+11.	Fit a complete second order model for predicting a used vehicle _price_ based on _age_ and _odometer_ and examine the residuals. You should discuss each of the conditions for the linear model.
+
+```{r}
+model6 <- lm(price ~ age + I(age^2) + odometer + I(odometer^2) + age*odometer, data = MyVehicles)
+```
+
+12. Perform a hypothesis test to determine if any of the coefficients in this model have nonzero coefficients. List your hypotheses, p-value, and conclusion.
+
+Null Hypothesis: All Coefficients of in this model are zero. 
+Alternate Hypothesis: One or more coefficients in this model are nonzero. 
+P-value(s): 2.2e-16, 5.74e-05, 0.356484, 0.299703, 0.009267
+Conclusion: Since the p-values for age, age^2, and age*odometer are near 0, we can reject the null hypothesis of all coefficients in this model being zero with 95% confidence.
+
+```{r}
+anova(model6)
+```
+
+13. Perform a hypothesis test to determine the importance of just the second order terms (quadratic and interaction) in the model constructed in question 11. List your hypotheses, p-value, and conclusion.
+
+Null Hypothesis: The importance of second order terms in this model are zero. 
+Alternate Hypothesis: The importance of second order terms in this model are nonzero. 
+P-value(s): 0
+Conclusion: Since the p-values for  are  0, we cannot reject the null hypothesis of the importance of second order terms in this model being zero. 
+
+```{r}
+model7 <- lm(price ~ I(age^2)+I(odometer^2) + age*odometer, data = MyVehicles)
+anova(model7, model6)
+```
+
+14. Perform a hypothesis test to determine the importance of just the terms that involve _odometer_ in the model constructed in question 11. List your hypotheses, p-value, and conclusion.
+
+Null Hypothesis: The importance of odometer-related terms in this model are zero. 
+Alternate Hypothesis: The importance of odometer-related terms in this model is nonzero. 
+P-value: 0.2631
+Conclusion: Since the p-value is above all sensible alphas, we cannot reject the null hypothesis of the importance of odometer-related terms in this model being zero. 
+
+```{r}
+model8<- lm(price ~ odometer + I(odometer^2) + age*odometer, data = MyVehicles)
+anova(model8, model6)
+```
+

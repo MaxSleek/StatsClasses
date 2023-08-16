@@ -1,0 +1,226 @@
+---
+title: "STOR 455 Final Exam - Version B"
+geometry: margin = 0.9in
+output:
+  pdf_document: default
+---
+
+__Directions:__ This exam is open books, notes, and internet. You should complete the exam in this R Notebook, including all code, plots, and explanations. For your submission, you should knit the notebook and submit it as a pdf to Gradescope. Make sure to assign your exam question answers to the pages of your pdf. If you are found to be submitting the work of other students as your exam submission, I will report an honor code violation. This could be by communication with others and the sharing of code: during the exam, with students in other sections of the course, or by using the solutions to exams from previous semesters. This is a zero tolerance policy and all suspected honor code violations will be reported.      
+
+__ScrabbleB Data:__ Scrabble is a word game in which players score points by placing tiles, each bearing a single letter, onto a game board divided into a 15×15 grid of squares. The tiles must form words that, in crossword fashion, read left to right in rows or downward in columns and are included in a standard dictionary or lexicon. This dataset contains data on Scrabble games played on the website woogles.io with metadata about individual games, time control, how the game ended, the winner, timestamps, and more.
+
+```{r}
+library(tidyverse)
+library(bestglm)
+library(MASS)
+library(car)
+library(gmodels)
+data <- read_csv("https://raw.githubusercontent.com/JA-McLean/STOR455/master/data/ScrabbleB.csv")
+```
+
+ 1)    Construct a  model to predict the _winner_ of the Scrabble game using _first_five_turns_points_ and _rating_mode_ (RATED or CASUAL). Perform a hypothesis test to determine if there is evidence that at least one of the predictor variables have nonzero coefficients. Cite your hypotheses, p-value, and conclusion in context. _10 pts_
+
+Null Hypothesis: First_five_turns_points and rating_mode both have regression coefficients of zero.
+Alternative Hypothesis: At least one of first_five_turns_points and rating_mode have a nonzero regression coefficient.
+P-values: first_five_turns_points: 1.49e-10 | rating_mode: 2.38e-05
+Conclusion: Since both of the p-values are near-zero, we can reject the null of neither predictors (First_five_turns_points and rating_mode) having nonzero regression coefficients at a .01 significance level.
+
+```{r}
+model <- glm(winner ~ first_five_turns_points + factor(rating_mode), data = data)
+summary(model)
+```
+
+ 2)    Produce a plot of _winner_ by _first_five_turns_points_ and include two curves for the relationships between _winner_ and _first_five_turns_points_ for the two ratings modes (RATED or CASUAL). You should use the model constructed in the previous question and not construct new models. _8pts_
+
+```{r}
+# Set coefficients
+b0 = summary(model)$coef[1]
+b1 = summary(model)$coef[2]
+b2_rated = summary(model)$coef[3]
+
+# Logit function
+logit = function(B0, B1, B2, x)
+  {
+    exp(B0+(B1*x)+(B2*x))/(1+exp(B0+(B1*x)+(B2*x)))
+}
+
+# Plot
+plot(winner ~ first_five_turns_points, data)
+curve(logit(b0, b1, b2_rated, x), add=TRUE, col='red')
+curve(logit(b0, b1, 0, x), add=TRUE, col='blue')
+```
+
+ 3)    Based on your model from question 1, what are the odds that the player playing a casual _rating_mode_ wins their match if they scored 207 points in their first five turns? _6 pts_
+
+**0.818705**
+
+```{r}
+newdata = data.frame(rating_mode = "CASUAL", first_five_turns_points = 207)
+predict.glm(model, newdata, interval = "response")
+```
+
+ 4)   Construct a new dataframe containing only the columns for the variables: _nickname_, _total_turns_, _first_five_turns_points_, _max_points_turn_, _min_points_turn_, _game_duration_seconds_, _time_used_, and _winner_. Construct a model to predict if a player won the Scrabble game (_winner_) using a model selection procedure to find the model with the lowest AIC or BIC and only the variables in the dataframe constructed in this question. Include a summary output for the model. _8pts_
+
+```{r}
+# Selection
+data2 = dplyr::select(data, c(nickname, total_turns, first_five_turns_points, max_points_turn, min_points_turn, game_duration_seconds, time_used, winner))
+
+# Model
+none <- glm(winner~1, data = data2, family = "binomial")
+full_model <- glm(winner~., data = data2, family = "binomial")
+
+final_model = stepAIC(none, scope=list(upper=full_model), direction = "both")
+summary(final_model)
+```
+
+ 5)    Construct a simple linear model to predict the square root of _game_duration_seconds_ by _first_five_turns_points_. Include a summary output for the model and a plot of the data (the square root of _game_duration_seconds_ by _first_five_turns_points_) with the regression line. Also produce appropriate residual plots and comment on how well your data appear to fit the conditions for a linear model. For this question and future questions, use the original ScrabbleB dataframe unless stated otherwise. _8pts_
+
+**Linearity: There is a slight curvature which impacts the linearity of our data. However, this curvature may be small enough to bypass when evaluating this condition.**
+**Constant Variance: We may have some issues with constant variance as the residuals appear to begin to cluster closer to 0 as the fitted values increase. Also, There appears to be a higher concentration of residuals around -5 between the fitted values 16 and 18.**
+**Normality of Residuals: There is significant deviance from the normal qq line on both tails. I would not accept normality for this data.**
+
+```{r}
+# Model
+model2 = lm(sqrt(game_duration_seconds) ~ first_five_turns_points, data = data)
+summary(model2)
+
+# Plots
+plot(sqrt(game_duration_seconds) ~ first_five_turns_points, data = data)
+abline(model2)
+plot(model2, c(1:2))
+```
+
+ 6)    Test the strength of the linear relationship between your variables in the model constructed in the previous question at the 5% significance level. List your hypotheses, p-value, and conclusion _5pts_
+
+Null Hypothesis: first_five_turns_points has a correlation coefficient of zero when predicting the square root of game_duration_seconds. 
+Alternative Hypothesis: first_five_turns_points has a nonzero correlation coefficient when predicting the square root of game_duration_seconds. 
+P-Value: 1.111e-09
+Conclusion: With a near-zero p-value, we can reject the null hypothesis of first_five_turns_points having a correlation coefficient of zero.
+
+```{r}
+# Note: Did this imply a correlation test? If not, I would've ran summary(model2) or anova455(model2) to check. 
+# summary(model2)
+# P-Value near-zero, Reject Null of B1 = 0
+# source("https://raw.githubusercontent.com/JA-McLean/STOR455/master/scripts/anova455.R")
+# anova455(model2)
+# P-Value near-zero, Reject Null of B1 = 0
+cor.test(sqrt(data$game_duration_seconds), data$first_five_turns_points)
+```
+
+ 7) Of the 50 most poorly predicted _game_duration_seconds_ (in terms of residuals) in the model constructed in question 5, which player (by _nickname_) played in the most of those Scrabble games? Note that you only need to consider the _nickname_ in the data and not who that player's opponent may have been for the given game. _5pts_
+
+**Rexington**
+
+```{r}
+data$residuals <- as.vector(abs(model2$residuals))
+highest_residuals1 <- data[order(-data$residuals),]
+highest_residuals <- highest_residuals1[1:50,]
+table(highest_residuals$nickname)
+```
+
+ 8)    Construct a linear model to predict the square root of _game_duration_seconds_ with the predictors _first_five_turns_points_, _lexicon_, and the interaction between _first_five_turns_points_ and _lexicon_. Include a summary output for the model. Do you have evidence to suggest that the square root of _game_duration_seconds_ is different for games using different _lexicon_? To answer this, Perform a hypothesis test to determine the importance of the terms involving _lexicon_ in the model. List your hypotheses, p-value, and conclusion. _10pts_
+
+Null Hypothesis: Terms involving lexicon have no importance in our model.
+Alternative Hypothesis: Terms involving lexicon have nonzero importance in our model.
+P-Value: 0.1798
+Conclusion: We cannot reject the null hypothesis of terms involving lexicon having no importance in our model. 
+
+```{r}
+# Model
+model3 <- lm(sqrt(game_duration_seconds) ~ first_five_turns_points + factor(lexicon) + first_five_turns_points*factor(lexicon), data = data)
+summary(model3)
+
+#ANOVA
+anova(model3, model2)
+```
+
+9)   Using the model constructed in the previous question, construct a 95% confidence interval for the change in _game_duration_seconds_ for each 25 point increase in _first_five_turns_points_ for the CSW21 _lexicon_. _6pts_
+
+**Confidence Interval: (0.530666, 1.032034)**
+
+```{r}
+# Multiply by 25. Should I multiply the standard error too? If not, the confidence interval would be (0.7713226, 0.7913774)
+25*0.031254 - 1.96*0.005116*25
+25*0.031254 + 1.96*0.005116*25
+```
+
+ 10)    Construct a new dataframe containing only the columns for the variables: _nickname_, _total_turns_, _first_five_turns_points_, _max_points_turn_, _min_points_turn_, and _game_duration_seconds_. Note that this is a similar dataframe to that constructed in question 4, but without the _winner_ variable. Construct a model to predict the square root of _game_duration_seconds_ using a model selection procedure to find the model with the lowest Mallow’s Cp using the variables in the dataframe constructed in this question. Include a summary output for the model. You do not need to use transformations, nor perform an analysis of the residuals, nor examine the conditions for a linear model. _8 pts_
+
+```{r}
+# Data frame
+data3 = dplyr::select(data, c(nickname, total_turns, first_five_turns_points, max_points_turn, min_points_turn, game_duration_seconds))
+
+# Model
+none4 <- lm(sqrt(game_duration_seconds)~0, data = data3)
+full_model4 <- lm(sqrt(game_duration_seconds)~., data = data3)
+MSE=(summary(full_model4)$sigma)^2
+final_model4 = stepAIC(none4, scope=list(upper=full_model4), direction = "both", scale = MSE)
+summary(final_model4)
+```
+
+ 11)    Construct an ANOVA model for the mean _first_five_turns_points_ by _nickname_. Perform a hypotheses test at the 0.05 significance level to test for the differences in the mean _first_five_turns_points_. You should include output showing the ANOVA table, the hypotheses being tested, and a conclusion in the context of the data. For this question and future questions, use the original ScrabbleB dataframe unless stated otherwise. _8 pts_
+
+Null Hypothesis: The mean value for _first_five_turns_points_ is equal regardless of the nickname.
+Alternative Hypothesis: The mean value for _first_five_turns_points_ is different depending on the nickname.
+P-Value: <2e-16
+Conclusion: Due to a near-zero p-value, we can reject the null hypothesis of there being no difference in the mean of
+_first_five_turns_points_ regardless of the nickname.
+
+```{r}
+model5 <- aov(first_five_turns_points ~ nickname, data)
+summary(model5)
+```
+
+12)    Do you have evidence of differences in mean _first_five_turns_points_ based on if the players are 40 years old or older versus under 40 years old? This data __is not__ included in _ScrabbleB_, but you have determined that players with the _nickname_ Eloquent, HivinD, and kar2008 are under 40 years old, marvin and pandorable have unknown ages, and the remaining players are 40 years old or older. You should not consider the players with unknown ages. Perform a contrast at the 0.05 significance level to compare the mean _first_five_turns_points_ of players 40 years old or older versus under 40 years old. You do not need to cite the specific hypothesis being tested, but you should draw an informal conclusion based on the results of your test. __Hint1:__ When you imported the data, the _nickname_ variable was likely imported as a _chr_. Before attempting this question, change that variable to a factor in the dataframe. __Hint2:__ Recall that there is a specific syntax required to be used in the model construction in order to perform this contrast as done in class. _6pts_
+
+**Conclusion: With a p-value of 0.0009175544, we can conclude the mean of first_five_turns_points is not equal regardless of if the player is over/under 40 years of age.**
+
+```{r}
+# Age
+for (i in 1:540){
+  if (data$nickname[i] == "Eloquent" || data$nickname[i] == "HivinD" || data$nickname[i] == "kar2008"){
+    data$age[i] = "under"
+  }else if (data$nickname[i] == "marvin" || data$nickname[i] == "pandorable"){
+    data$age[i] = "unknown"
+  }else{
+    data$age[i] = "over"
+  }
+}
+
+data4 = filter(data, age != "unknown")
+data4$age = factor(data4$age)
+model6 = aov(first_five_turns_points~age, data=data4)
+summary(model6)
+
+ageMSE = summary(model6)[[1]][2,3]
+contrastSE = sqrt(ageMSE*(0.5/240+0.5/180))
+data4over = filter(data4, age == "over")
+data4under = filter(data4, age == "under")
+contrast = mean(data4over$first_five_turns_points) - mean(data4under$first_five_turns_points)
+t.stat = contrast/contrastSE
+2*(pt(t.stat, 420))
+
+# Couldn't get fit.contrast to work
+# fit.contrast(model6, data4$age, c(1, 0))
+```
+
+13)    Construct an ANOVA model for the mean _first_five_turns_points_ using _nickname_, and _lexicon_ as predictors. Perform hypotheses tests at the 5% significance level to test for the differences in the mean _first_five_turns_points_ by the predictors. You should include output showing the ANOVA table, the hypotheses being tested, and a conclusion in the context of the data. __If__ you have evidence of significant differences in mean _first_five_turns_points_ by a predictor or interaction, perform pairwise comparisons to investigate where you have evidence to suggest that these differences occurred. _12 pts_ 
+
+Null Hypothesis: Mean points for the first five turns is equal by nickname
+Alternative Hypothesis: Mean points for the first five turns is NOT equal by nickname
+P-Value:<2e-16
+Conclusion: Due to our near-zero p-value, we can reject the null that mean points for the first five turns is equal by nickname.
+
+Null Hypothesis: Mean points for the first five turns is equal by lexicon.
+Alternative Hypothesis: Mean points for the first five turns is NOT equal by lexicon.
+P-Value:0.637   
+Conclusion: Due to our high p-value, we cannot reject the null that mean points for the first five turns is equal by lexicon.
+
+Pairwise comparisons show that there are significant differences in mean points for the first five turns between every combination of nicknames. 
+
+```{r}
+model7 <- aov(first_five_turns_points~factor(nickname) + factor(lexicon), data = data)
+summary(model7)
+TukeyHSD(model7)[-2]
+```
+

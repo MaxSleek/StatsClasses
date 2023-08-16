@@ -1,0 +1,409 @@
+---
+title: 'STOR 455 Homework #2'
+subtitle: "50 points - Due Wednesday 9/14 at 11:59pm"
+geometry: margin = 1.75cm
+output:
+  pdf_document: default
+  html_notebook: default
+  html_document:
+    df_print: paged
+---
+
+__Situation:__ Suppose that you are interested in purchasing a used vehicle. How much should you expect to pay?  Obviously the price will depend on the type of vehicle that you get (the model) and how much it's been used. For this assignment you will investigate how the price might depend on the vehicle's year and mileage.  
+ 
+__Data Source:__ To get a sample of vehicles, begin with the _vehiclesSE_ CSV file. The data was acquired by scraping Craigslist for vehicles for sale across the southeastern United States. For this assignment you will choose a vehicle _model_ for which there are between 100 and 300 of that model listed for sale in data. After constructing a subset of the _vehiclesSE_ data under these conditions, check to make sure that there is a reasonable amount of variability in the years for your vehicle, with a range of at least five years. Remove any vehicles with a price of $0.
+
+__Directions:__ The code below should walk you through the process of selecting data from a particular model vehicle of your choice. Each of the following two R chunks begin with {r, eval=FALSE}. eval=FALSE makes these chunks not run when I knit the file. Before you knit these chunks, you should revert them to {r}.
+
+```{r}
+library(readr)
+library(MASS)
+library(car)
+
+# This line will only run if the vehiclesSE.csv is stored in the same directory as this notebook!
+vehiclesSE <- read_csv("vehiclesSE.csv", show_col_types = FALSE)
+
+# Creates a dataframe with the number of each model for sale in the data
+models_for_sale = as.data.frame(
+  table(
+    subset(vehiclesSE, price>0)$model
+      )
+    )
+
+# Renames the variables
+names(models_for_sale)[1] = "model"
+names(models_for_sale)[2] = "count"
+
+just_right_amount = subset(models_for_sale, count >= 100 & count <= 300)
+just_right_amount
+```
+
+```{r}
+# Delete the ** below and enter the model that you chose from the just_right_amount data.
+ModelOfMyChoice = "cr-v"
+
+# Takes a subset of your model vehicles
+MyVehicles = subset(vehiclesSE, model==ModelOfMyChoice & price > 0)
+
+# Check to make sure that the vehicles span at least 6 years.
+range(MyVehicles$year)
+```
+
+\newpage
+
+#### MODEL #1: Use Odometer as a predictor for Price ####
+
+#**1.	Calculate the least squares regression line that best fits your data using _odometer_ as the predictor and _price_ as the response. Interpret (in context) what the slope estimate tells you about prices and odometer readings of your used vehicle model. Explain why the sign (positive/negative) makes sense.** 
+The slope estimate tells me that, according to the model, for every 1,000 additional miles on the odometer, the price of the car goes down by about $90.48. This makes sense because the value of a car depreciates the more it is used.
+
+```{r}
+crvmodel <- lm(price~odometer, data = MyVehicles)
+summary(crvmodel)
+```
+
+
+
+#**2.	Produce a scatterplot of the relationship with the regression line on it.**
+
+```{r}
+plot(price~odometer, data = MyVehicles)
+abline(crvmodel)
+```
+
+
+
+#**3.	Produce appropriate residual plots and comment on how well your data appear to fit the conditions for a linear model. Don't worry about doing transformations at this point if there are problems with the conditions.**
+
+A. Linearity: By looking at the scatterplot created above, a linear model looks like a pretty good fit for this model. We can analyze this further by looking at a plot of the residuals vs. the fitted values. Most of our residuals seem to fall between -5000 and 5000, but there are some outliers. For the most part, though, a linear seems to be a good fit because of the cluster of residuals close to the (0,0) line.
+
+```{r}
+plot(crvmodel$residuals~crvmodel$fitted.values)
+abline(0,0)
+```
+
+B. Zero Mean: Zero mean deals with the difference of the errors being centered at 0. We cannot be very sure of this condition, though we can look at a 5 number summary and a box plot to tell us where the center of the residuals is. it appears that the mean of the residuals is 0, but the median is around 14.67. This is definitely something to keep in mind.
+
+```{r}
+summary(crvmodel$residuals)
+boxplot(crvmodel$residuals)
+```
+
+C. Constant Variance: Constant variance deals with the variance of Y being the same at each X. By looking at the residual vs. fitted values plot again, we can see that there is a slight change in the residuals as the fitted values increase. From 0 to 10,000, the residuals decrease, then expand slightly for the rest of the fitted values. The variance is somewhat constant, but not perfect.
+
+```{r}
+plot(crvmodel$residuals~crvmodel$fitted.values)
+abline(0,0)
+```
+
+D. As I also said on homework 1/quiz 1, since we did not collect this data set, it would be difficult for us to determine any relationships between errors, so I'll pass by the independence condition in this case.
+
+E. Normality: Normality deals with the variance being normally distributed. To analyze this, we can make a normal quantile plot, which shows our residuals vs. a line representing the residuals if they were perfectly normal. From this plot, we can determine that our residuals are mostly normally distributed. There is a slight left skew, though it's important to notice that the skew is only a result of a few values, which may likely be outliers.
+
+```{r}
+qqnorm(crvmodel$residuals)
+qqline(crvmodel$residuals)
+```
+
+
+
+#**4. Find the five vehicles in your sample with the largest residuals (in magnitude - positive or negative). For these vehicles, find their standardized and studentized residuals. Based on these specific residuals, would any of these vehicles be considered outliers? Based on these specific residuals, would any of these vehicles possibly be considered influential on your linear model?** 
+
+Based on the residuals, they ALL may possibly be considered influential since they are over +/-3.
+
+```{r}
+head(sort(abs(crvmodel$residuals), decreasing = TRUE), 5)
+MyVehicles$id[77]
+MyVehicles$id[36]
+MyVehicles$id[39]
+MyVehicles$id[145]
+MyVehicles$id[84]
+
+stdres(crvmodel)[77]
+stdres(crvmodel)[36]
+stdres(crvmodel)[39]
+stdres(crvmodel)[145]
+stdres(crvmodel)[84]
+
+studres(crvmodel)[77]
+studres(crvmodel)[36]
+studres(crvmodel)[39]
+studres(crvmodel)[145]
+studres(crvmodel)[84]
+```
+
+
+#**5.  Determine the leverages for the vehicles with the five largest absolute residuals. What do these leverage values say about the potential for each of these five vehicles to be influential on your model?**
+
+It appears that the 145th vehicle is the only value with potential to be influential since its leverage is nearly 3 times 3*2/263.
+
+```{r}
+2*2/263
+3*2/263
+
+hatvalues(crvmodel)[77]
+hatvalues(crvmodel)[36]
+hatvalues(crvmodel)[39]
+hatvalues(crvmodel)[145]
+hatvalues(crvmodel)[84]
+```
+
+
+#**6. Determine the Cook's distances for the vehicles with the five largest absolute residuals. What do these Cook's distances values say about the influence of each of these five vehicles on your model?**
+
+We should take a look at the 145th value's impact on the model, since it is pretty close to 0.5. The other values don't appear to have much influence if they were removed since their cook's distance is small.
+
+```{r}
+cooks.distance(crvmodel)[77]
+cooks.distance(crvmodel)[36]
+cooks.distance(crvmodel)[39]
+cooks.distance(crvmodel)[145]
+cooks.distance(crvmodel)[84]
+
+plot(crvmodel, 5)
+```
+
+
+#**7.	Compute and interpret in context a 95% confidence interval for the slope of your regression line. Interpret (in context) what the confidence interval for the slope tells you about prices and odometer readings of your used vehicle model.**
+
+If another sample is collected, we can be 95% confident the slope of the regression line of that sample will be between -9.795054e-02 and -8.300677e-02.
+
+```{r}
+confint(crvmodel, level =0.95)
+```
+
+
+
+#**8.	Test the strength of the linear relationship between your variables using each of the three methods (test for correlation, test for slope, ANOVA for regression). Include hypotheses for each test and your conclusions in the context of the problem.**
+
+```{r}
+#Correlation Test: 
+cor(MyVehicles$price, MyVehicles$odometer)
+cor.test(MyVehicles$price, MyVehicles$odometer)
+#Null Hypothesis: Correlation is equal to 0
+#Alt Hypothesis: Correlation is not equal to 0
+#Conclusion: With a p-value of near 0, we can reject the null hypothesis that the correlation is equal to 0.
+
+#Slope Test:
+summary(crvmodel)
+#Null Hypothesis: Regression Slope is equal to 0
+#Alt Hypothesis: Regression Slope is not equal to 0
+#Conclusion: With a p-value of near 0, we can reject the null hypothesis that the Regression Slope is equal to 0.
+
+#ANOVA Test:
+anova(crvmodel)
+#Null Hypothesis: Regression is equal to 0
+#Alt Hypothesis: Regression is not equal to 0
+#Conclusion: With an f-statistic of 568 and a p-value of near 0, we can reject the null hypothesis that the Regression is equal to 0.
+```
+
+
+#**9.	Suppose that you are interested in purchasing a vehicle of this model that has 50,000 miles on it. Determine each of the following: 95% confidence interval for the mean price at this odometer reading and 95% prediction interval for the price of an individual vehicle at this odometer reading. Write sentences that carefully interpret each of the intervals (in terms of vehicles prices).**
+
+Using the confidence interval, we can be 95% confident that the true mean value for the price of all cars with 50,000 miles is between 22,524.37 and 24,476.77. Using the prediction interval, we can be 95% confident that the true value for the price of a single car with 50,000 miles on it will be between 15,875.19 and 31,125.94.
+
+```{r}
+newx = data.frame(odometer = 50,000)
+
+predict.lm(crvmodel, newx, interval="confidence")
+predict.lm(crvmodel, newx, interval="prediction")
+```
+
+
+#**10.	Experiment with some transformations to attempt to find one that seems to do a better job of satisfying the linear model conditions. Include the summary output for fitting that model and a scatterplot of the original data with this new model (which is likely a curve on the original data). Explain why you think that this transformation does or does not improve satisfying the linear model conditions.**
+
+I think this transformation improves the satisfaction of the linear modeling conditions because the normal qq plot is much more aligned and the residuals vs. fitted plot is MUCH more concentrated around the (0,0) line, suggesting constant variance and linearity. 
+
+```{r}
+crvmodel1.6 <- lm(log(price)~log(odometer), data = MyVehicles)
+summary(crvmodel1.6)
+b0 = crvmodel1.6$coef[1]
+b1 = crvmodel1.6$coef[2]
+plot(price~odometer, data = MyVehicles)
+curve(exp(b0)*x^b1, add = TRUE)
+plot(crvmodel1.6, 1)
+plot(crvmodel1.6, 2)
+plot(crvmodel1.6, 5)
+plot(crvmodel1.6$residuals~crvmodel1.6$fitted.values)
+abline(0,0)
+```
+
+#**11.	According to your transformed model, is there a odometer reading at which the vehicle should be free?  If so, find this odometer reading and comment on what the "free vehicle" phenomenon says about the appropriateness of your model.**
+
+No, there will never be an odometer reading where the vehicle should be free since log functions cannot touch 0. This makes sense, since the value of a car should likely never be 0.
+
+#**12. Again suppose that you are interested in purchasing a vehicle of this model that has 50,000 miles on it. Determine each of the following using your transformed model: 95% confidence interval for the mean price at this odometer reading and 95% prediction interval for the price of an individual vehicle at this odometer reading. Write sentences that carefully interpret each of the intervals (in terms of vehicle prices).**
+
+Using the confidence interval, we can be 95% confident that the true mean value for the price of all cars with 50,000 miles is between 13,243.55 and 15,068.97. Using the prediction interval, we can be 95% confident that the true value for the price of a single car with 50,000 miles on it will be between 12,45134 and 15,86118.
+
+```{r}
+newx = data.frame(odometer = 50,000)
+
+predict.lm(crvmodel1.6, newx, interval="confidence")
+predict.lm(crvmodel1.6, newx, interval="prediction")
+```
+
+
+#### MODEL #2: Again use Odometer as a predictor for Price, but now for new data #### 
+
+#**13. Select a subset from the vehiclesCA dataset using the same _model_ vehicle that was used in the previous section, but now from vehicles for sale in California. You can mimic the code used above to select this new sample. You should again remove vehicles with a price of $0.**
+
+```{r}
+vehiclesCA <- read_csv("vehiclesCA.csv", show_col_types = FALSE)
+# Creates a dataframe with the number of each model for sale in the data
+models_for_sale2 = as.data.frame(
+  table(
+    subset(vehiclesCA, price>0)$model
+      )
+    )
+
+# Renames the variables
+names(models_for_sale2)[1] = "model"
+names(models_for_sale2)[2] = "count"
+
+just_right_amount = subset(models_for_sale, count >= 100 & count <= 300)
+just_right_amount
+# Delete the ** below and enter the model that you chose from the just_right_amount data.
+ModelOfMyChoice = "cr-v"
+
+# Takes a subset of your model vehicles
+MyVehicles2 = subset(vehiclesCA, model==ModelOfMyChoice & price > 0)
+
+# Check to make sure that the vehicles span at least 6 years.
+range(MyVehicles2$year)
+```
+
+
+
+#**14. Calculate the least squares regression line that best fits your new data and produce a scatterplot of the relationship with the regression line on it.**
+
+```{r}
+crvmodel2 <- lm(price~odometer, data = MyVehicles2)
+summary(crvmodel2)
+
+plot(price~odometer, data = MyVehicles2)
+abline(crvmodel2)
+```
+
+
+
+#**15. How does the relationship between _price_ and _odometer_ for this new data compare to the regression model constructed in the first section? Does it appear that the relationship between _odometer_ and _price_ for your _model_ of vehicle is similar or different for the data from the southeastern Unites States versus California? Explain.**
+
+It appears that the model and regression slop are similar, but the residuals are larger. There are also more data points in the higher price range than the other data set. Similarly, there are less data points in the lower price range.
+
+#### MODEL #3: Use Age as a predictor for Price ####
+
+
+#**16. Construct a new variable _age_ in your dataframe used in model #1 (your model car for sale in the southeastern US). The _age_ should be 2021 (the year that the data was scraped) minus the _year_ of the vehicle. Calculate the least squares regression line that best fits your data using _age_ as the predictor and _price_ as the response. Produce a scatterplot of the relationship with the regression line on it.**
+
+```{r}
+MyVehicles <- dplyr::mutate(MyVehicles, "age" = 2021 - year)
+crvmodel1.5 <- lm(price~age, data = MyVehicles)
+summary(crvmodel1.5)
+plot(price~age, data = MyVehicles)
+abline(crvmodel1.5)
+```
+
+
+#**17.	Produce appropriate residual plots and comment on how well your data appear to fit the conditions for a simple linear model. Don't worry about doing transformations at this point if there are problems with the conditions.**
+
+A. Linearity: By looking at the scatterplot created above, a linear model looks like a pretty good fit for this model. However, when we plot the residuals vs. fitted values, we can see a clear curvature. This means that a linear model is likely not the best representation for the data.
+
+```{r}
+plot(crvmodel1.5$residuals~crvmodel1.5$fitted.values)
+abline(0,0)
+```
+
+B. Zero Mean: Zero mean deals with the difference of the errors being centered at 0. We cannot be very sure of this condition, though we can look at a 5 number summary and a box plot to tell us where the center of the residuals is. it appears that the mean of the residuals is 0, but the median is around -187.1. Just like the odometer model, this is definitely something to keep in mind, though 187 is a relatively small incriment in this case.
+
+```{r}
+summary(crvmodel1.5$residuals)
+boxplot(crvmodel1.5$residuals)
+```
+
+C. Constant Variance: Constant variance deals with the variance of Y being the same at each X. By looking at the residual vs. fitted values plot again, we can see that there is a slight change in the residuals as the fitted values increase. From 0 to 15,000, the variance appears to be constant. However, after that point the residuals curve upward and become alost exclusively positive. This means we do not have constant variance.
+
+```{r}
+plot(crvmodel1.5$residuals~crvmodel$fitted.values)
+abline(0,0)
+```
+
+D. As I also said on homework 1/quiz 1, since we did not collect this data set, it would be difficult for us to determine any relationships between errors, so I'll pass by the independence condition in this case.
+
+E. Normality: Normality deals with the variance being normally distributed. To analyze this, we can make a normal quantile plot, which shows our residuals vs. a line representing the residuals if they were perfectly normal. From this plot, we can determine that our residuals are mostly normally distributed aside from a few values at the extremes.
+
+```{r}
+qqnorm(crvmodel1.5$residuals)
+qqline(crvmodel1.5$residuals)
+```
+
+
+#**18. Experiment with some transformations to attempt to find one that seems to do a better job of satisfying the linear model conditions. Include the summary output for fitting that model and a scatterplot of the original data with this new model (which is likely a curve on the original data). Explain why you think that this transformation does or does not improve satisfying the linear model conditions.**
+
+Similar to the transformed model for odometer, I think this transformation improves the satisfaction of the linear modeling conditions because the residuals vs. fitted plot is MUCH more concentrated around the (0,0) line, suggesting constant variance and linearity, and the residuals vs. leverage plot is well within the cook's distance lines. 
+
+```{r}
+crvmodel2.5 <- lm(log(price)~log(age), data = MyVehicles)
+summary(crvmodel2.5)
+b0 = crvmodel2.5$coef[1]
+b1 = crvmodel2.5$coef[2]
+plot(price~age, data = MyVehicles)
+curve(exp(b0)*x^b1, add = TRUE)
+plot(crvmodel2.5, 1)
+plot(crvmodel2.5, 2)
+plot(crvmodel2.5, 5)
+plot(crvmodel2.5$residuals~crvmodel2.5$fitted.values)
+abline(0,0)
+```
+
+#**19. How do the transformed models, using either _age_ or _odometer_ as the predictor for your model of vehicle for sale compare? Does one of the models seem "better" or do they seem similar in their ability to predict _price_? Explain.**
+
+Both models seem decent for predicting price, but if I had to pick one, I'd say the age model is better. For each plot (residuals vs. fitted, normal qq, and residuals vs. leverage), the values seem to be tighter along the line.
+
+#### MODEL #4: Use Age and Odometer as predictors for Price ####
+
+#**20. Construct a model using two predictors (_age_ and _odometer_) with _price_ as the response variable and provide the summary output.**
+
+```{r}
+crvmodel3 <- lm(price~age+odometer, data = MyVehicles)
+summary(crvmodel3)
+```
+
+
+
+
+#**21. Assess the importance of each of the predictors in the regression model - be sure to indicate the specific value(s) from the summary output you are using to make the assessments. Include hypotheses and conclusions in context.**
+
+We can use the p-value from the summary output to assess the importance of the predictors in the regression model. For age, our null hypothesis is that it has no impact on the regression (=0). Meanwhile, our alternative hypothesis is that it has an impact (/=0). The estimated regression slope is -8.092e+02 and the p value is < 2e-16, meaning we can reject the null. For odometer, our null hypothesis is also that it has no impact on the regression (=0). Meanwhile, our alternative hypothesis is that it has an impact (/=0). The estimated regression slope is -3.766e-02 and the p value is 1.14e-12, meaning we can reject the null. Both predictors seem to have importance in the regression model, and age seems to hold more importance.
+
+
+
+
+#**22. Assess the overall effectiveness of this model (with a formal test). Again, be sure to include hypotheses and the specific value(s) you are using from the summary output to reach a conclusion.**
+
+Our hypotheses are very similar to above. For age, our null hypothesis is that it has no impact on the regression (=0). Meanwhile, our alternative hypothesis is that it has an impact (/=0). The F value is 1045.601 and the p value is < 2e-16, meaning we can reject the null. For odometer, our null hypothesis is also that it has no impact on the regression (=0). Meanwhile, our alternative hypothesis is that it has an impact (/=0). The F value is 55.968 and the p value is 1.136e-12, meaning we can reject the null. Both predictors seem to have importance in the regression model, and age seems to hold more importance.
+
+```{r}
+anova(crvmodel3)
+```
+
+
+#**23. Compute and interpret the variance inflation factor (VIF) for your predictors.**
+
+Since the VIF is between 1 and 5, we can say that age and odometer are moderately correlated. We should take a look at this correlation, but it shouldn't be alarming.
+
+```{r}
+vif(crvmodel3)
+```
+
+
+#**24. Suppose that you are interested in purchasing a car of this model that is from the year 2017 with 50K miles. Determine each of the following: a 95% confidence interval for the mean price at this year and odometer reading, and a 95% prediction interval for the price of an individual car at this year and odometer reading. Write sentences that carefully interpret each of the intervals (in terms of car prices)**
+
+Using the confidence interval, we can be 95% confident that the true mean value for the price of cars from 2017 with 50,000 miles is between 21,160.75 and 22,755.02. Using the prediction interval, we can be 95% confident that the true value for the price of a single car with 50,000 miles on it will be between 16,001.20 and 27,914.57.
+
+```{r}
+newx2 = data.frame(age = 4, odometer = 50,000)
+
+predict.lm(crvmodel3, newx2, interval="confidence")
+predict.lm(crvmodel3, newx2, interval="prediction")
+```
+

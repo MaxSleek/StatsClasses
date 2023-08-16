@@ -1,0 +1,88 @@
+---
+title: "STOR 455 Quiz 1 - Version A"
+subtitle: '20 pts'
+output:
+  pdf_document: default
+---
+
+__Directions:__ This quiz is open books, notes, internet, and all things other direct communication with others. The _RideShare.csv_ dataset is needed to complete the quiz. This dataset contains data on _Uber_ and _Lyft_ rides in the Boston area over dozens of variables. You should complete the quiz in this R Notebook, including all code, plots, and explanations. For your submission, you should knit the notebook and submit it as a pdf to Gradescope. Make sure to assign your quiz question answers to the pages of your pdf. If you are unable to knit your notebook, you should submit the rmd file of your quiz under the 'Unable to Knit' tool in Sakai instead of Gradescope. The dataset can be found at the link below:
+
+https://raw.githubusercontent.com/JA-McLean/STOR455/master/data/RideShare.csv
+
+1)    Each row in the _RideShare_ dataframe is a ride from a ride share service. Construct a new dataframe named _UberNoSurge_ containing only those rides from Uber drivers when the surge multiplier is equal to 1. The variable _cab_type_ distinguishes between _Uber_ and _Lyft_ rides and the _surge_multiplier_ variables shows the multiplier for the price of the fare based on the demand for rides at the given time. Note that underscores are used in the beginning and end of dataframe names, variables, and variable values in the text of the rmd file for this question. Those underscores are used to show the names italicized in a knitted document and are not part of the actual names. _(3 pts)_
+
+```{r}
+RideShare <- read.csv("https://raw.githubusercontent.com/JA-McLean/STOR455/master/data/RideShare.csv")
+Uber <- subset(RideShare, subset = cab_type == "Uber")
+UberNoSurge <- subset(Uber, subset = surge_multiplier == 1)
+```
+
+2)    Using the _UberNoSurge_ dataframe constructed in the previous question, construct a linear model predicting the _price_ of a ride based on the ride's _distance_. Also construct a summary of the linear model and a scatterplot of the data including the linear model. _(4 pts)_
+
+```{r}
+UberNoSurgeModel <- lm(price~distance, data = UberNoSurge)
+summary(UberNoSurgeModel)
+plot(price~distance, data = UberNoSurge)
+abline(UberNoSurgeModel)
+```
+
+3)    Comment on how each of the conditions for a simple linear model are (or are not) met in the model constructed in the previous problem. Include at least two plots (in addition to the plot in the previous question) - with commentary on what each plot tells you specifically about the appropriateness of conditions. _(5 pts)_
+
+1. Linearity: By looking at the scatterplot created above, a linear model doesn't look like an amazing fit for this data. However, there are no significant curvatures. We can analyze this further by looking at a plot of the residuals vs. the fitted values. While the plot shows that the values do fall along a (0,0) line, the relationship is not very tight; we have many residual values ranging from -10 to 20. So, we can assume that this data doesn't break linearity, per say, but we cannot be confident that a linear model is the best way to represent it.
+
+```{r}
+plot(price~distance, data = UberNoSurge)
+abline(UberNoSurgeModel)
+
+plot(UberNoSurgeModel$residuals~UberNoSurgeModel$fitted.values)
+abline(0,0)
+```
+
+2. Zero Mean: Zero mean deals with the difference of the errors being centered at 0. We cannot be very sure of this condition, though we can look at a 5 number summary and a box plot to tell us where the center of the residuals is. it appears that the mean of the residuals is 0, but the median is around -2.5. This is definitely something to keep in mind.
+
+```{r}
+summary(UberNoSurgeModel$residuals)
+boxplot(UberNoSurgeModel$residuals)
+```
+
+3. Constant Variance: Constant variance deals with the variance of Y being the same at each X. By taking a look at the regression line once again, we can tell that the variance appears to be constant throughout the dataset. There is no pattern that would suggest a significant change in the variance, though we should still keep in mind that we have a very high range of residual values.
+
+```{r}
+plot(price~distance, data = UberNoSurge)
+abline(UberNoSurgeModel)
+```
+
+4. As I also said on homework 1, since we did not collect this data set, it would be difficult for us to determine any relationships between errors, so I'll pass by the independence condition in this case.
+
+5. Normality: Normality deals with the variance being normally distributed. To analyze this, we can make a normal quantile plot, which shows our residuals vs. a line representing the residuals if they were perfectly normal. From this plot, we can determine that our residuals are not very normally distributed. There is a heavy left skew, and there are several points along the plot that fluctuate between being overestimates and underestimates.
+
+```{r}
+qqnorm(UberNoSurgeModel$residuals)
+qqline(UberNoSurgeModel$residuals)
+```
+
+4)    For the ride with the _price_ that is most overpredicted by your linear model, what is the _destination_ for this ride? _(3 pts)_
+
+```{r}
+which.min(UberNoSurgeModel$residuals)
+RideShare[472, "destination"]
+```
+
+5)    To attempt to improve the model conditions, construct a new linear model predicting the log() (natural log) of the _price_ of a ride based on the ride's _distance_, still using the _UberNoSurge_ dataframe. Also construct a summary of this new linear model and a scatterplot of the raw data (without a transformation) including this new model (which is now a curve). _(5 pts)_
+
+```{r}
+UberNoSurgeModel2 <- lm(log(price)~log(distance), data = UberNoSurge)
+summary(UberNoSurgeModel2)
+b0 = UberNoSurgeModel2$coefficients[1]
+b1 = UberNoSurgeModel2$coefficients[2]
+plot(price~distance, data = UberNoSurge)
+curve(exp(b0)*x^b1, add = TRUE)
+```
+
+
+
+
+
+
+
+

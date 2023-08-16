@@ -1,0 +1,178 @@
+---
+title: 'STOR 455 Homework #8'
+subtitle: 25 points - Due 11/14 at 11:59pm
+output:
+  pdf_document: default
+  html_document:
+    df_print: paged
+---
+
+__Situation (again):__ Suppose that you are interested in purchasing a used car. How much should you expect to pay?  Obviously the price will depend on the type of car you get (the model) and how much it's been used. For this assignment you will investigate how the price might depend on the age, mileage, and the model of car. 
+
+__Data Source:__ To get a sample of vehicles, begin with the _vehiclesSE_ csv file. The data was acquired by scraping Craigslist for vehicles for sale across the southeastern United States. For this assignment, you will need to select six new samples, each with _exactly_ 50 vehicles, for six different _model_ of used vehicles for sale on Craigslist in the Southeastern United States. There will likely be more than 50 of your selected models for sale in the _vehiclesSE_ datset, so you should randomly select those 50 vehicles from the larger number that are available (and are listed with a _price_ greater than $0). The six models of vehicles should be selected such that three models of vehicles are selected from Japanese companies, and another three from US companies (i.e. _manufacturer_; It does not matter where the cars were actually made). Within each country, you should select a compact car, a mid-sized car, and a SUV (Note that the country and types of vehicles are not given in the data and are for you to determine). You should add new variables to the dataframes for the country of the company and type of vehicle (compact vs mid-sized vs SUV) and combine these six samples into one dataframe (use rbind(df1, df2, df3, ...)). When selecting these samples make sure to use set.seed(). This will select the same sample each time that you run (and knit) your code.The code below is an example of how you could select a random sample of 50 cars for a given model:
+
+```{r}
+library(dplyr)
+library(tidyverse)
+vehiclesSE <- read_csv("vehiclesSE.csv")
+set.seed(8675309) # VERY IMPORTANT!
+Equinox = sample_n(subset(vehiclesSE, model=='equinox' & size =="mid-size" & price > 0), 50)
+# Focus only had 49 values
+Focus = sample_n(subset(vehiclesSE, model=='focus' & size =="compact" & price > 0), 50, replace = TRUE)
+Cherokee = sample_n(subset(vehiclesSE, model=='cherokee' & type=="SUV" & price > 0), 50)
+Civic = sample_n(subset(vehiclesSE, model=='civic' & size =="compact" & price > 0), 50)
+Camry = sample_n(subset(vehiclesSE, model=='camry' & size=="mid-size" & price > 0), 50)
+Rogue = sample_n(subset(vehiclesSE, model=='rogue' & type=="SUV" & price > 0), 50)
+sample <- rbind(Equinox, Focus, Cherokee, Civic, Camry, Rogue)
+for (i in 1:nrow(sample)){
+  if (is.na(sample$type[i])==TRUE){
+     sample$type[i] = 0
+  }
+  if (sample$type[i] == "SUV"){
+    sample$size[i] = "SUV"
+  }
+}
+
+sample$size[which(sample$model == "equinox")] = "mid-size"
+```
+
+
+#### One Way ANOVA ####    
+
+1.  Produce a set of side-by-side boxplots to compare the price distributions of your three types of vehicles (not the models). Comment on any obvious differences in the distributions. 
+
+**Note: I had to split up the box plots because SUV wasn't in the same variable as compact and mid-size. The compact cars have a much smaller median price and IQR than the other two types of cars.**
+
+```{r, warning = FALSE}
+boxplot(price~size, data=sample)
+means = tapply(sample$price, sample$size,mean)
+points(means, col = "red", pch=18)
+```
+
+2.  Produce summary statistics (mean and standard deviation) for each of the groups (vehicle types) AND the entire sample of vehicle prices. 
+
+```{r}
+mean(filter(sample, size == "compact")$price)
+sd(filter(sample, size == "compact")$price)
+mean(filter(sample, size == "mid-size")$price)
+sd(filter(sample, size == "mid-size")$price)
+mean(filter(sample, size == "SUV")$price)
+sd(filter(sample, size == "SUV")$price)
+```
+
+3.  Based on just what you see in the boxplots and summary statistics comment on whether you think there are significant differences in the mean prices among your three vehicle types. Also comment on any concerns you see about the conditions for the ANOVA for means model.
+
+**I do think there are significant differences in the mean prices, at least between compact cars and the other two types. The box plot was much more restrictive on the range of compact cars' prices, and the mean and median were significantly lower. Independence may be a condition issue since I picked the first models I thought of -- not randomly. It seems that mid-size cars may be skewed left since their mean is slightly lower than their median (and the opposite for compact), which may be a small issue of normality.**
+
+4.  Construct an ANOVA model for the mean price by vehicle type. Include the output showing the ANOVA table; state hypotheses, and provide a conclusion in the context of your data. 
+
+Null Hypothesis: The mean price of all 3 types of cars are equal.
+Alternative Hypothesis: The mean price of all 3 types of cars are not equal.
+Conclusion: With a p-value of near-zero, we can state with over 99% confidence that the mean price of the 3 types of cars are not equal; reject the null.
+
+```{r}
+anovamodel <- aov(price~factor(size),data=sample)
+anovamodel
+summary(anovamodel)
+```
+
+5.  Produce plots and/or summary statistics to comment on the appropriateness of the following conditions for your data: normality of the residuals, and equality of the variances. If you find that the conditions are _not_ met, You can still continue with analysis of your data for this homework. We will soon discuss how to deal with violations of these conditions.
+
+**By looking at our normal qq plot, we can see that the residuals are relatively normally distributed, but we may need to look at the left tail for possible skew. By looking at the residuals vs fitted plot and the standard deviations of each group, we can tell that our variances are not very equal. The standard deviation for compacts is much lower (3000 lower). This is likely an issue.**
+
+```{r}
+plot(anovamodel)
+```
+    
+6.  If your ANOVA model indicates that there are significant differences among the vehicle type price means, discuss where the significant differences occur using Tukey HSD methods. If your ANOVA indicates there are not significant differences among the vehicle type price means, determine how different your mean prices would need to be in order to find a significant difference using the Tukey HSD methods.
+
+**According to the Tukey HSD, compact is the only different group, with the SUV-mid-size comparison having a p-value extremely close to 1.**
+
+```{r}
+TukeyHSD(anovamodel)
+```
+
+#### Two Way ANOVA ####
+
+7.  Construct an ANOVA model for the mean price using the country of the company and the type of vehicle as predictors (without an interaction). Include the output showing the ANOVA table; state hypotheses and provide a conclusion in the context of your data. If your ANOVA model indicates there are significant differences among the vehicle price means: Discuss where the significant differences occur using Tukey HSD methods.
+
+Null Hypothesis: The mean price of all cars, regardless of manufacturer or country, are equal.
+Alternative Hypothesis: The mean price of all cars regardless of manufacturer or country, are not equal.
+Conclusion: With a p-value of near-zero for manufacturers, we can state with over 99% confidence that the mean price of the 3 types of cars regardless of manufacturer or country, are not equal; reject the null.
+Tukey HSD: The difference between us and japan is not significant, but there were significant differences between the manufaturers. Those include ford-chevy, honda-chevy, jeep-ford, nissan-ford, toyota-ford, jeep-honda, nissan-honda, toyota-honda.
+
+```{r}
+for (i in 1:nrow(sample)){
+  if (sample$manufacturer[i] == "chevrolet" || sample$manufacturer[i] == "ford" || sample$manufacturer[i] == "jeep"){
+    sample$country[i] = "us"
+  }else{
+    sample$country[i] = "japan"
+  }
+}
+anovamodel2=aov(price~factor(country) + factor(manufacturer),data=sample)
+anovamodel2
+summary(anovamodel2)
+TukeyHSD(anovamodel2)
+```
+
+8.	Produce plots and/or summary statistics to comment on the appropriateness of the following conditions for your data: normality of the residuals, and equality of the variances. 
+
+**By looking at our normal qq plot, we can see that the residuals are relatively normally distributed, but we may need to look at the both tails for possible skew this time. By looking at the residuals vs fitted plot and the standard deviations of each group, we can tell that our variances are not very equal. There is high variance inbetween the standard devs of the groups.**
+
+```{r}
+plot(anovamodel2)
+sd(filter(sample, country == 'us')$price)
+sd(filter(sample, country == 'japan')$price)
+
+sd(filter(sample, manufacturer == 'jeep')$price)
+sd(filter(sample, manufacturer == 'chevrolet')$price)
+sd(filter(sample, manufacturer == 'ford')$price)
+sd(filter(sample, manufacturer == 'honda')$price)
+sd(filter(sample, manufacturer == 'nissan')$price)
+sd(filter(sample, manufacturer == 'toyota')$price)
+```
+
+9.  Construct an ANOVA model for the mean price using the country of the company and the type of vehicle as predictors with the interaction. Include the output showing the ANOVA table; state hypotheses and provide a conclusion in the context of your data. If your ANOVA indicates that there are significant differences among the car price means: Discuss where the significant differences occur using Tukey HSD methods.
+
+Null Hypothesis: Country, Size, and the interaction between country and size all have no impact on the mean price of a car.
+Alternative Hypothesis: At least one of the Country, Size, and the interaction between country and size have an impact on the mean price of a car.
+Conclusion: Country and the interaction between country and size are both not significant at a 95% level, but size is with a p-value of nonzero, meaning we can reject the null.
+Tukey: There are significant differences between compact cars and the other two sizes, but there are no significant differnces when the interaction is applied to both country and size.
+
+```{r}
+anovamodel3 <- aov(price~factor(country) + factor(size) + country*size, data = sample)
+summary(anovamodel3)
+TukeyHSD(anovamodel3)
+```
+
+10. Produce two interaction plots for the previous model. If you found significant interactions in your hypothesis test, comment on how these interactions are shown in the plot. If you did not find significant interactions in your hypothesis test, comment on how the (lack of) interactions are shown in the plot.
+
+**In the first plot, the mid-size and SUVs are very close while compact is much lower affirming our significant difference. In the second plot, we see the difference from us and japan in compact cars but not in the other two types.**
+
+```{r}
+interaction.plot(sample$country, sample$size, sample$price)
+interaction.plot(sample$size, sample$country, sample$price)
+```
+
+
+#### Additional Topics ####
+11. Recall that we can also handle a categorical predictor with multiple categories using ordinary multiple regression if we create indicator variables for each category and include all but one of the indicators in the model. Run an ordinary multiple regression to predict _price_ using the country of the company, the type of vehicle, and the interaction between the two as predictors. Interpret each of the coefficients in the "dummy" regression by what they mean in the context of mean prices. 
+
+**If a car was produced in the US, the price goes down by an average of 3,130. The price for mid-size cars is (on average) 4,376 more than compact cars, while SUVS are 4,632 more. If a car was made in the US and is mid-size than the opposite, it is 3,172 more on average, and an SUV made in the US is 2,978 more. Note: The p-values for the interaction are not significant, meaning we can't trust those values.**
+
+```{r}
+anovamodel3 <- lm(price~country + size + country*size, data = sample)
+summary(anovamodel3)
+```
+
+
+12. One possible drawback of the analysis for this assignment is that different people might have chosen vehicles with quite different mileages when collecting their samples.  Thus an apparent "difference" between two countries or vehicle types might be due to one sample having considerably more higher mileage vehicles in it than another. Construct a model that allows you to check for mean price differences between your vehicles from the model constructed in question 11 after accounting for variability due to the _odometer_ readings of the vehicles. Explain how you use the output from the model to address this question.
+
+**We can see from the output that the odometer variable has a p-value of near-zero, suggesting it is a significant predictor of price. If we run an anova comparing the two models, we can see the odometer variable is absolutely significant in the prediction of price. So, this would be an issue.**
+
+```{r}
+anovamodel4 <- lm(price~country + size + country*size + odometer, data = sample)
+summary(anovamodel4)
+anova(anovamodel3, anovamodel4)
+```
+

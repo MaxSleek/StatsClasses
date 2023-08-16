@@ -1,0 +1,63 @@
+---
+title: "STOR 455 Quiz 2 - Version A"
+geometry: margin = 0.9in
+output:
+  pdf_document: default
+---
+
+__Directions:__ This quiz is open books, notes, and internet. You should complete the quiz in this R Notebook, including all code, plots, and explanations. For your submission, you should knit the notebook and submit it as a pdf to Gradescope. Make sure to assign your quiz question answers to the pages of your pdf. If you are unable to knit your notebook, you should submit the rmd file of your quiz under the 'Unable to Knit' tool in Sakai instead of Gradescope.    
+
+__Because this apparently needs to be said:__ If you are found to be submitting the work of other students as your quiz submission, I will report an honor code violation. This could be by communication with others and the sharing of code: during the quiz, with students in other sections of the course, or by using the solutions to quizzes from previous semesters. This is a zero tolerance policy and all suspected honor code violations will be reported.
+
+__Quiz Data:__ Doctor Who is a British science-fiction television program broadcast by the BBC that originally ran from 1963 to 1989 and was relaunched in 2005. The program depicts the adventures of a Time Lord called the Doctor, an extraterrestrial being who appears to be human. Beginning with William Hartnell, thirteen actors have headlined the series as the Doctor. The transition from one actor to another is written into the plot of the show with the concept of regeneration into a new incarnation, a plot device in which a Time Lord "transforms" into a new body when the current one is too badly harmed to heal normally. Each actor's portrayal is unique, but all represent stages in the life of the same character, and together, they form a single lifetime with a single narrative.
+
+This dataset contains data from the relaunch of the program in 2005 (and not from 1963 to 1989) with each row in the data representing an episode. The data pertinent to this quiz are the audience scores out of 100 (_Appreciation_Index_), number of viewers for each episode in the United Kingdom in the millions (_UK_viewers_millions_), and the actor portraying the Doctor (_The_Doctor_). The dataset can be found at the link below:
+
+
+```{r}
+library(tidyverse)
+data <- read_csv("https://raw.githubusercontent.com/JA-McLean/STOR455/master/data/DoctorWho.csv")
+```
+
+1) Construct a quadratic regression model to predict the natural log of audience scores (_Appreciation_Index_) using the natural log of the viewers for each episode in the United Kingdom in the millions (_UK_viewers_millions_) to create the predictors. Include a summary of this model.
+
+```{r}
+model1 <- lm(log(Appreciation_Index)~log(UK_viewers_millions) + I((log(UK_viewers_millions))^2), data = data)
+summary(model1)
+```
+
+2) Construct a new model to predict the natural log of audience scores (_Appreciation_Index_) including the terms of the model constructed in question 1 as well as the variable _The_Doctor_ and _The_Doctor_ interacted with each of the terms from the model constructed in question 1. Perform a hypothesis test to determine the importance of just the terms that involve _The_Doctor_. List your hypotheses, p-value, and conclusion.
+
+Null Hypothesis: For all predictors involving The_Doctor, their coefficient (or importance) is zero.
+Alternative Hypothesis: For all predictors involving The_Doctor, their coefficient (or importance) is nonzero.
+P-value: < 2.2e-16
+Conclusion: Due to the p-value being near-zero, their is enough statistically significant evidence to reject the null, meaning there is enough eveidence to suggest that one of the coefficients for The_Doctor related terms is nonzero.
+```{r}
+model2 <- lm(log(Appreciation_Index)~log(UK_viewers_millions) + I((log(UK_viewers_millions))^2) + The_Doctor + The_Doctor*log(UK_viewers_millions) + The_Doctor*I((log(UK_viewers_millions))^2), data = data)
+anova(model1,model2)
+```
+
+3) What is the difference in your predicted mean audience scores (_Appreciation_Index_) for an episode with 9 million viewers in the United Kingdom when either Matt Smith or David Tennant are portraying the Doctor? Your mean predictions in this case should be one specific value and not an interval of values at some level of confidence. You can perform the subtraction in either direction.
+
+```{r}
+newx1 <- data.frame("UK_viewers_millions" = 9, "The_Doctor" = "Matt Smith")
+newx2 <- data.frame("UK_viewers_millions" = 9, "The_Doctor" = "David Tennant")
+predict.lm(model2, newx1, interval = "prediction")[1] - predict.lm(model2, newx2, interval = "prediction")[1]
+```
+
+4) How does the relationship between audience scores (_Appreciation_Index_) and viewers for each episode in the United Kingdom in the millions (_UK_viewers_millions_) differ depending on if Matt Smith or David Tennant are portraying the Doctor? To answer this question you should construct a plot of the data on _Appreciation_Index_ vs _UK_viewers_millions_ (for only episodes when Matt Smith or David Tennant are portraying the Doctor). Using the model constructed in question 2, plot two separate curves for the relationships between audience scores (_Appreciation_Index_) and viewers for each episode in the United Kingdom in the millions (_UK_viewers_millions_) for when either Matt Smith or David Tennant are portraying the Doctor. You should construct no new model to answer this question.
+
+```{r}
+smith_tennant <- rbind.data.frame(filter(data, The_Doctor == "Matt Smith"), filter(data, The_Doctor == "David Tennant"))
+
+# Tennant - I had the coefficients but couldn't figure out the correct way to multiply them to plot the curve after the first 3 predictors
+plot(log(Appreciation_Index)~log(UK_viewers_millions), data = smith_tennant)
+curve(summary(model2)$coef[1] + summary(model2)$coef[2]*x + summary(model2)$coef[3]*x^2 + summary(model2)$coef[4] +  summary(model2)$coef[8]*x*summary(model2)$coef[2]*x + summary(model2)$coef[12]*x*summary(model2)$coef[3]*x^2, add = TRUE)
+
+# Smith - I had the coefficients but couldn't figure out the correct way to multiply them to plot the curve after the first 3 predictors
+plot(log(Appreciation_Index)~log(UK_viewers_millions), data = smith_tennant)
+curve(summary(model2)$coef[1] + summary(model2)$coef[2]*x + summary(model2)$coef[3]*x^2 + summary(model2)$coef[6] +  summary(model2)$coef[10]*x*summary(model2)$coef[2]*x + summary(model2)$coef[14]*x*summary(model2)$coef[3]*x^2, add = TRUE)
+```
+
+
+
